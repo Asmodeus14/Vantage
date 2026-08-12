@@ -1,0 +1,351 @@
+@import "tailwindcss";
+
+/* Class-based dark mode, driven by next-themes on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * DESIGN TOKENS
+ * =============
+ * Every colour, radius and duration in the product resolves to something
+ * declared here. Components reference semantic names (surface, border, muted)
+ * rather than raw values, so the palette can change in one place.
+ *
+ * The visual target is a developer tool: dense, quiet, bordered. Depth comes
+ * from 1px borders and small elevation shifts rather than large shadows or
+ * gradients. Colour is reserved for severity and state — it means something
+ * wherever it appears.
+ */
+
+:root {
+  /* Neutrals — very slightly cool, so large surfaces don't read as muddy. */
+  --canvas: hsl(0 0% 100%);
+  --surface: hsl(220 20% 99%);
+  --surface-raised: hsl(220 20% 97%);
+  --surface-sunken: hsl(220 20% 96%);
+  --surface-hover: hsl(220 16% 94%);
+  --border: hsl(220 13% 89%);
+  --border-strong: hsl(220 13% 80%);
+
+  --fg: hsl(222 30% 12%);
+  --fg-muted: hsl(220 10% 42%);
+  --fg-subtle: hsl(220 9% 56%);
+  --fg-on-accent: hsl(0 0% 100%);
+
+  /* Inline code. Distinct from --surface-sunken, which is darker than the
+     canvas in dark mode and so disappears when code sits on the page rather
+     than on a raised card. This one always reads as a tint of the surface it
+     is on, in either theme. */
+  --code-inline: hsl(220 20% 94%);
+
+  --accent: hsl(217 91% 50%);
+  --accent-hover: hsl(217 91% 44%);
+  --accent-subtle: hsl(217 91% 96%);
+  --accent-border: hsl(217 91% 84%);
+
+  /* Severity ramp. Ordered so adjacent levels stay distinguishable, and
+     paired with an icon/label everywhere so colour is never the sole signal. */
+  --critical: hsl(349 75% 45%);
+  --critical-bg: hsl(349 90% 97%);
+  --critical-border: hsl(349 80% 88%);
+
+  --high: hsl(22 85% 44%);
+  --high-bg: hsl(28 100% 96%);
+  --high-border: hsl(28 85% 85%);
+
+  --medium: hsl(38 80% 38%);
+  --medium-bg: hsl(45 100% 95%);
+  --medium-border: hsl(45 80% 82%);
+
+  --low: hsl(217 75% 48%);
+  --low-bg: hsl(217 95% 97%);
+  --low-border: hsl(217 85% 88%);
+
+  --info: hsl(220 9% 46%);
+  --info-bg: hsl(220 16% 96%);
+  --info-border: hsl(220 13% 87%);
+
+  --success: hsl(152 65% 32%);
+  --success-bg: hsl(150 70% 96%);
+  --success-border: hsl(150 55% 82%);
+
+  /* Diff colours, tuned to stay legible behind syntax highlighting. */
+  --diff-add-bg: hsl(150 60% 94%);
+  --diff-add-gutter: hsl(150 45% 78%);
+  --diff-del-bg: hsl(349 85% 96%);
+  --diff-del-gutter: hsl(349 60% 85%);
+
+  /* Charts. The severity ramp is ordinal and means something specific, so it is
+     never borrowed as a generic series palette — these are for dimensions that
+     carry no severity, like languages or contributors. Hues are spaced far
+     enough apart to survive the common forms of colour blindness. */
+  --chart-grid: hsl(220 13% 92%);
+  --chart-axis: hsl(220 9% 56%);
+  --series-1: hsl(217 91% 50%);
+  --series-2: hsl(172 66% 36%);
+  --series-3: hsl(280 60% 55%);
+  --series-4: hsl(32 85% 48%);
+  --series-5: hsl(340 65% 52%);
+
+  --ring: hsl(217 91% 50%);
+  --shadow-color: 220 40% 20%;
+
+  --radius: 0.375rem;
+}
+
+.dark {
+  --canvas: hsl(222 22% 7%);
+  --surface: hsl(222 20% 9%);
+  --surface-raised: hsl(220 18% 12%);
+  --surface-sunken: hsl(224 24% 6%);
+  --surface-hover: hsl(220 16% 16%);
+  --border: hsl(220 14% 18%);
+  --border-strong: hsl(220 12% 28%);
+
+  --fg: hsl(210 20% 93%);
+  --fg-muted: hsl(215 14% 62%);
+  --fg-subtle: hsl(217 12% 48%);
+  --fg-on-accent: hsl(0 0% 100%);
+
+  --code-inline: hsl(220 14% 19%);
+
+  --accent: hsl(213 94% 62%);
+  --accent-hover: hsl(213 94% 70%);
+  --accent-subtle: hsl(215 60% 15%);
+  --accent-border: hsl(214 60% 30%);
+
+  --critical: hsl(350 90% 68%);
+  --critical-bg: hsl(350 45% 14%);
+  --critical-border: hsl(350 45% 28%);
+
+  --high: hsl(27 95% 62%);
+  --high-bg: hsl(25 45% 13%);
+  --high-border: hsl(25 45% 27%);
+
+  --medium: hsl(43 95% 60%);
+  --medium-bg: hsl(40 45% 12%);
+  --medium-border: hsl(40 40% 25%);
+
+  --low: hsl(213 92% 68%);
+  --low-bg: hsl(215 50% 14%);
+  --low-border: hsl(215 45% 28%);
+
+  --info: hsl(217 14% 62%);
+  --info-bg: hsl(220 14% 15%);
+  --info-border: hsl(220 12% 26%);
+
+  --success: hsl(150 60% 55%);
+  --success-bg: hsl(150 40% 12%);
+  --success-border: hsl(150 35% 25%);
+
+  --diff-add-bg: hsl(150 40% 13%);
+  --diff-add-gutter: hsl(150 40% 30%);
+  --diff-del-bg: hsl(350 40% 15%);
+  --diff-del-gutter: hsl(350 40% 32%);
+
+  --chart-grid: hsl(220 14% 17%);
+  --chart-axis: hsl(217 12% 48%);
+  --series-1: hsl(213 94% 62%);
+  --series-2: hsl(172 60% 48%);
+  --series-3: hsl(280 70% 70%);
+  --series-4: hsl(32 90% 60%);
+  --series-5: hsl(340 75% 66%);
+
+  --ring: hsl(213 94% 62%);
+  --shadow-color: 220 60% 2%;
+}
+
+/* Expose the tokens to Tailwind so `bg-surface`, `text-fg-muted` etc. exist. */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-on-accent: var(--fg-on-accent);
+  --color-code-inline: var(--code-inline);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-border: var(--accent-border);
+
+  --color-critical: var(--critical);
+  --color-critical-bg: var(--critical-bg);
+  --color-critical-border: var(--critical-border);
+  --color-high: var(--high);
+  --color-high-bg: var(--high-bg);
+  --color-high-border: var(--high-border);
+  --color-medium: var(--medium);
+  --color-medium-bg: var(--medium-bg);
+  --color-medium-border: var(--medium-border);
+  --color-low: var(--low);
+  --color-low-bg: var(--low-bg);
+  --color-low-border: var(--low-border);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis: var(--chart-axis);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --color-series-5: var(--series-5);
+
+  --color-diff-add-bg: var(--diff-add-bg);
+  --color-diff-add-gutter: var(--diff-add-gutter);
+  --color-diff-del-bg: var(--diff-del-bg);
+  --color-diff-del-gutter: var(--diff-del-gutter);
+
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  /* Deliberately short. Motion here confirms a state change; it is never décor. */
+  --duration-fast: 100ms;
+  --duration-base: 150ms;
+  --duration-slow: 200ms;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--canvas);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.5715;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* A single, consistent focus treatment. Never removed — only restyled. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  ::selection {
+    background-color: var(--accent);
+    color: var(--fg-on-accent);
+  }
+
+  /* Tabular figures keep counts and line numbers from shifting as they change. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: var(--font-mono);
+    font-feature-settings: "liga" 0;
+  }
+}
+
+@layer components {
+  /*
+   * Shiki emits per-token `--shiki-light` / `--shiki-dark` custom properties
+   * (defaultColor: false). Selecting between them here means theme switching
+   * costs nothing — no re-highlight, no flash, no second render.
+   */
+  .shiki-host .shiki,
+  .shiki-host .shiki span {
+    color: var(--shiki-light);
+    background-color: transparent;
+  }
+
+  .dark .shiki-host .shiki,
+  .dark .shiki-host .shiki span {
+    color: var(--shiki-dark);
+  }
+
+  .shiki-host .shiki {
+    margin: 0;
+    padding: 0.75rem 0.875rem;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    background-color: transparent;
+  }
+
+  .shiki-host .shiki code {
+    display: block;
+    width: max-content;
+    min-width: 100%;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--border-strong);
+    border-radius: 6px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: var(--fg-subtle);
+  }
+
+  /* For strips that scroll only on narrow viewports, where a visible bar would
+     sit under the content and read as a stray rule. */
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/*
+ * Respect the OS setting. Anything that communicates progress keeps a
+ * non-motion fallback (text and numbers), so disabling animation never
+ * removes information.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

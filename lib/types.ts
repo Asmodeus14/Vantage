@@ -1,0 +1,247 @@
+/**
+ * API contract — mirrors `app/schemas.py` on the backend.
+ *
+ * v2's dashboard guessed at response shapes (`getSolutionText` tried four
+ * different field names) and rendered several fields the backend never sent.
+ * These types are the single description of what actually comes back; anything
+ * not declared here does not exist.
+ */
+
+export const SEVERITIES = ["critical", "high", "medium", "low", "info"] as const;
+export type Severity = (typeof SEVERITIES)[number];
+
+export const CATEGORIES = [
+  "security",
+  "dependencies",
+  "correctness",
+  "quality",
+  "performance",
+  "testing",
+  "configuration",
+] as const;
+export type Category = (typeof CATEGORIES)[number];
+
+export type Confidence = "high" | "medium" | "low";
+export type SourceKind = "repository" | "upload";
+export type Grade = "A" | "B" | "C" | "D" | "F";
+
+export interface Finding {
+  id: string;
+  rule_id: string;
+  title: string;
+  description: string;
+  category: Category;
+  severity: Severity;
+  confidence: Confidence;
+  file: string | null;
+  line: number | null;
+  end_line: number | null;
+  snippet: string | null;
+  /** First line of `snippet`, for correct gutter numbering. */
+  snippet_start_line: number | null;
+  remediation: string | null;
+  references: string[];
+}
+
+export interface LanguageStat {
+  language: string;
+  files: number;
+  lines: number;
+  share: number;
+}
+
+export interface DependencyInfo {
+  name: string;
+  version_spec: string;
+  resolved_version: string | null;
+  ecosystem: string;
+  is_dev: boolean;
+  vulnerabilities: string[];
+}
+
+export interface ProjectInfo {
+  name: string | null;
+  description: string | null;
+  languages: LanguageStat[];
+  frameworks: string[];
+  package_managers: string[];
+  entry_points: string[];
+  total_files: number;
+  analysed_files: number;
+  total_lines: number;
+  has_tests: boolean;
+  has_ci: boolean;
+  has_lockfile: boolean;
+}
+
+export interface CategoryScore {
+  category: Category;
+  score: number;
+  findings: number;
+  weight: number;
+}
+
+export interface Score {
+  value: number;
+  grade: Grade;
+  categories: CategoryScore[];
+  summary: string;
+}
+
+export interface SeverityCounts {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  info: number;
+}
+
+export interface SourceInfo {
+  kind: SourceKind;
+  repository: string | null;
+  ref: string | null;
+  commit: string | null;
+  url: string | null;
+  filename: string | null;
+}
+
+export interface IngestStats {
+  files_extracted: number;
+  files_analysed: number;
+  bytes_extracted: number;
+  compression_ratio: number;
+  skipped_directories: string[];
+  /** Unsafe archive entries by reason, e.g. `{ symlink: 2 }`. */
+  rejected_entries: Record<string, number>;
+}
+
+export interface ReportSummary {
+  id: string;
+  created_at: string;
+  source: SourceInfo;
+  score: number;
+  grade: Grade;
+  severity_counts: SeverityCounts;
+  total_findings: number;
+  duration_seconds: number;
+}
+
+export interface ChurnEntry {
+  file: string;
+  /** Commits touching this file inside `window_days`. */
+  changes: number;
+  findings: number;
+  top_severity: Severity;
+}
+
+/**
+ * Commit history, read from the GitHub API rather than the snapshot — the
+ * analyser works from a tarball, which has no `.git`.
+ */
+export interface RepositoryActivity {
+  window_days: number;
+  /** Oldest week first. Empty when GitHub had not finished computing it. */
+  weekly_commits: number[];
+  churn: ChurnEntry[];
+  /**
+   * Files carrying a finding. Larger than `churn.length` when the per-file
+   * lookup was capped — the cap is a designed bound, not a failure, so it does
+   * not set `partial`.
+   */
+  files_with_findings: number;
+  partial: boolean;
+  /** Why it is partial — shown verbatim, never invented. */
+  unavailable_reason: string | null;
+}
+
+export interface Report {
+  id: string;
+  created_at: string;
+  duration_seconds: number;
+  source: SourceInfo;
+  project: ProjectInfo;
+  score: Score;
+  severity_counts: SeverityCounts;
+  findings: Finding[];
+  dependencies: DependencyInfo[];
+  ingest: IngestStats;
+  /** Absent for uploads, and when history could not be read at all. */
+  activity: RepositoryActivity | null;
+  truncated: boolean;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Health                                                                      */
+/* -------------------------------------------------------------------------- */
+
+export type AIState = "unconfigured" | "ready" | "cooling_down";
+
+export interface AIHealth {
+  configured: boolean;
+  available: boolean;
+  state: AIState;
+  model: string | null;
+  /** Why AI is unavailable — shown to the user verbatim, never invented. */
+  reason: string | null;
+  retry_after_seconds: number | null;
+}
+
+export interface DependencyHealth {
+  configured: boolean;
+  available: boolean;
+  detail: string | null;
+}
+
+export interface AuthStatus {
+  configured: boolean;
+  /** Why sign-in is unavailable — shown verbatim, never invented. */
+  reason: string | null;
+}
+
+export interface HealthResponse {
+  status: "ok" | "degraded";
+  version: string;
+  environment: string;
+  timestamp: string;
+  ai: AIHealth;
+  database: DependencyHealth;
+  auth: AuthStatus;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Analysis progress                                                           */
+/* -------------------------------------------------------------------------- */
+
+export const ANALYSIS_STAGES = [
+  "queued",
+  "fetching",
+  "extracting",
+  "indexing",
+  "analysing",
+  "scoring",
+  "enriching",
+  "persisting",
+  "done",
+  "failed",
+] as const;
+export type AnalysisStage = (typeof ANALYSIS_STAGES)[number];
+
+export interface ProgressEvent {
+  stage: AnalysisStage;
+  message: string;
+  completed: number;
+  total: number;
+  report_id: string | null;
+  error: string | null;
+}
+
+export interface JobStarted {
+  job_id: string;
+}
+
+/** Structured error payload returned by every backend failure. */
+export interface ApiErrorBody {
+  code: string;
+  message: string;
+  detail?: string;
+}

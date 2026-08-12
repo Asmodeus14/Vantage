@@ -1,0 +1,250 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import * as Tabs from "@radix-ui/react-tabs";
+import {
+  Boxes,
+  ExternalLink,
+  FileArchive,
+  GitCommitHorizontal,
+  Github,
+  ListFilter,
+  LayoutDashboard,
+} from "lucide-react";
+
+import { ActivityPanel } from "@/components/report/activity-panel";
+import { FindingsPanel } from "@/components/report/findings-panel";
+import { DependenciesPanel } from "@/components/report/dependencies-panel";
+import { OverviewPanel } from "@/components/report/overview-panel";
+import { cn, formatDuration, formatRelativeTime } from "@/lib/utils";
+import { scoreColour } from "@/lib/severity";
+import type { Report, ReportSummary } from "@/lib/types";
+
+const TABS = [
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "findings", label: "Findings", icon: ListFilter },
+  { id: "dependencies", label: "Dependencies", icon: Boxes },
+  { id: "activity", label: "Activity", icon: GitCommitHorizontal },
+] as const;
+
+type TabId = (typeof TABS)[number]["id"];
+
+const TAB_IDS: readonly string[] = TABS.map((tab) => tab.id);
+
+export function ReportView({
+  report,
+  history = [],
+}: {
+  report: Report;
+  /** Previous analyses of the same repository, newest first. */
+  history?: ReportSummary[];
+}) {
+  const searchParams = useSearchParams();
+  const [focusFile, setFocusFile] = React.useState<string>("");
+
+  // Activity only exists for repositories whose history could be read, so the
+  // tab is absent rather than present-and-empty.
+  const tabs = React.useMemo(
+    () => TABS.filter((item) => item.id !== "activity" || report.activity),
+    [report.activity],
+  );
+
+  const requested = searchParams.get("tab");
+  const tab: TabId =
+    requested && TAB_IDS.includes(requested) && tabs.some((t) => t.id === requested)
+      ? (requested as TabId)
+      : "overview";
+
+  /**
+   * The tab lives in the URL so a link to a specific view is shareable and
+   * survives a refresh — it was local state, and both were lost.
+   *
+   * `history.replaceState` rather than `router.replace`: this route is
+   * `force-dynamic`, so a router navigation would round-trip to the server to
+   * re-render output that has not changed. Next 15 keeps `useSearchParams` in
+   * sync with the native history API.
+   */
+  const select = React.useCallback(
+    (next: TabId) => {
+      const params = new URLSearchParams(Array.from(searchParams.entries()));
+      if (next === "overview") params.delete("tab");
+      else params.set("tab", next);
+      const query = params.toString();
+      window.history.replaceState(
+        null,
+        "",
+        query ? `${window.location.pathname}?${query}` : window.location.pathname,
+      );
+    },
+    [searchParams],
+  );
+
+  const counts: Partial<Record<TabId, number>> = {
+    findings: report.findings.length,
+    dependencies: report.dependencies.length,
+    activity: report.activity?.churn.length ?? 0,
+  };
+
+  const title =
+    report.source.repository ?? report.source.filename ?? "Uploaded archive";
+
+  return (
+    <div className="mx-auto max-w-[1400px] px-4 py-6">
+      <header className="mb-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              {report.source.kind === "repository" ? (
+                <Github className="size-4 shrink-0 text-fg-subtle" aria-hidden />
+              ) : (
+                <FileArchive className="size-4 shrink-0 text-fg-subtle" aria-hidden />
+              )}
+              <h1 className="truncate text-lg font-semibold tracking-tight text-fg">
+                {title}
+              </h1>
+              {report.source.url && (
+                <a
+                  href={report.source.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded p-0.5 text-fg-subtle transition-colors duration-(--duration-fast) hover:text-fg"
+                  aria-label={`Open ${title} on GitHub (new tab)`}
+                >
+                  <ExternalLink className="size-3.5" aria-hidden />
+                </a>
+              )}
+            </div>
+
+            <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-fg-subtle">
+              {report.source.ref && (
+                <span className="font-mono">{report.source.ref}</span>
+              )}
+              {report.source.commit && (
+                <span className="inline-flex items-center gap-1 font-mono">
+                  <GitCommitHorizontal className="size-3" aria-hidden />
+                  {report.source.commit.slice(0, 7)}
+                </span>
+              )}
+              <time dateTime={report.created_at}>
+                {formatRelativeTime(report.created_at)}
+              </time>
+              <span aria-hidden>·</span>
+              <span>analysed in {formatDuration(report.duration_seconds)}</span>
+              <span aria-hidden>·</span>
+              <span>
+                {report.project.analysed_files} files,{" "}
+                {report.project.total_lines.toLocaleString()} lines
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-baseline gap-2">
+            <span
+              className={cn(
+                "tabular text-3xl font-semibold tracking-tight",
+                scoreColour(report.score.value),
+              )}
+            >
+              {report.score.value}
+            </span>
+            <div className="text-xs text-fg-subtle">
+              <div className="font-medium text-fg-muted">
+                Grade {report.score.grade}
+              </div>
+              <div>out of 100</div>
+            </div>
+          </div>
+        </div>
+
+        {report.truncated && (
+          <div className="mt-3 rounded-md border border-medium-border bg-medium-bg px-3 py-2 text-xs text-fg">
+            This report was capped at {report.findings.length} findings. The
+            highest-severity issues are shown first.
+          </div>
+        )}
+      </header>
+
+      <Tabs.Root value={tab} onValueChange={(value) => select(value as TabId)}>
+        {/*
+          The tabs plus their counts exceed a phone's width, so the strip
+          scrolls within itself rather than pushing the page body sideways.
+        */}
+        <div className="scrollbar-none overflow-x-auto border-b border-border">
+          <Tabs.List
+            aria-label="Report sections"
+            className="-mb-px flex w-max gap-1"
+          >
+            {tabs.map((item) => {
+              const Icon = item.icon;
+              const count = counts[item.id];
+              return (
+                <Tabs.Trigger
+                  key={item.id}
+                  value={item.id}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-sm",
+                    "text-fg-muted transition-colors duration-(--duration-fast)",
+                    "hover:border-border-strong hover:text-fg",
+                    "data-[state=active]:border-accent data-[state=active]:font-medium data-[state=active]:text-fg",
+                  )}
+                >
+                  <Icon className="size-3.5" aria-hidden />
+                  {item.label}
+                  {count !== undefined && count > 0 && (
+                    <span className="tabular text-xs text-fg-subtle">{count}</span>
+                  )}
+                </Tabs.Trigger>
+              );
+            })}
+          </Tabs.List>
+        </div>
+
+        <div className="pt-5">
+          <Tabs.Content value="overview">
+            <OverviewPanel
+              report={report}
+              history={history}
+              onViewFindings={() => select("findings")}
+            />
+          </Tabs.Content>
+          <Tabs.Content value="findings">
+            <FindingsPanel report={report} initialQuery={focusFile} />
+          </Tabs.Content>
+          <Tabs.Content value="dependencies">
+            <DependenciesPanel report={report} />
+          </Tabs.Content>
+          {report.activity && (
+            <Tabs.Content value="activity">
+              <ActivityPanel
+                report={report}
+                onSelectFile={(file) => {
+                  // Hand the path to the findings filter, which already
+                  // matches on file as well as title and rule id.
+                  setFocusFile(file);
+                  select("findings");
+                }}
+              />
+            </Tabs.Content>
+          )}
+        </div>
+      </Tabs.Root>
+
+      <footer className="mt-8 border-t border-border pt-4 text-xs text-fg-subtle">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span>
+            Report <span className="font-mono">{report.id}</span> · this URL is
+            shareable
+          </span>
+          <Link
+            href="/"
+            className="rounded transition-colors duration-(--duration-fast) hover:text-fg"
+          >
+            Analyse another repository
+          </Link>
+        </div>
+      </footer>
+    </div>
+  );
+}
