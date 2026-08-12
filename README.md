@@ -1,299 +1,237 @@
-# CodeCopilot 🚀
+# Vantage
 
-**AI-Powered Code Analysis & Optimization Platform**
+**Point it at a repository and it tells you what is wrong, exactly where.**
 
-[![Frontend Deployment](https://img.shields.io/badge/Frontend-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://codecopilot0.vercel.app)
-[![Backend Deployment](https://img.shields.io/badge/Backend-Render-46B3A0?style=for-the-badge&logo=render&logoColor=white)](https://codecopilot-backend.onrender.com)
-![React](https://img.shields.io/badge/React-18.2-61DAFB?style=for-the-badge&logo=react&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-2.3-000000?style=for-the-badge&logo=flask&logoColor=white)
-![Backend](https://github.com/Asmodeus14/codecopilot-backend)
+Paste a GitHub URL. Vantage fetches the source, runs a rule engine over it,
+and returns a scored report where every finding is anchored to a file and line
+with the offending code shown beside it — known vulnerabilities from real
+advisory data, committed credentials, correctness bugs, and structural problems.
 
-## 🌟 Live Demo
-
-**Frontend Application:** [CodeCopilot](https://codecopilot0.vercel.app)
-
-> **Note:** The backend service needs to be running locally or deployed separately for full functionality.
-
-## 📖 Overview
-
-CodeCopilot is an intelligent code analysis platform that helps developers identify issues, security vulnerabilities, and optimization opportunities in their web projects. With AI-powered insights and comprehensive security scanning, it's your co-pilot for better code quality.
-
-![CodeCopilot Dashboard](https://via.placeholder.com/800x400/1e293b/3b82f6?text=CodeCopilot+Dashboard)
-
-## ✨ Features
-
-### 🔍 Smart Code Analysis
-- **Dependency Analysis**: Detect version mismatches and missing dependencies
-- **Security Scanning**: Comprehensive security vulnerability detection
-- **Project Structure**: Analyze project organization and best practices
-- **Configuration Validation**: Validate project configuration files
-
-### 🤖 AI-Powered Insights
-- **LLM Integration**: Get intelligent solutions and explanations
-- **Root Cause Analysis**: Understand why issues occur
-- **Step-by-Step Solutions**: Detailed fix instructions
-- **Prevention Tips**: Learn how to avoid similar issues
-
-### 🛡️ Enterprise-Grade Security
-- **Zip Bomb Protection**: Advanced compression ratio detection
-- **File Type Filtering**: Automatic blocking of dangerous file types
-- **Path Traversal Prevention**: Secure file extraction
-- **Size Limits**: Configurable file and extraction size limits
-
-### 📊 Comprehensive Reporting
-- **Health Score**: Overall project health assessment
-- **Priority Issues**: Critical, major, and minor issue categorization
-- **Security Warnings**: Detailed security notifications
-- **Project Statistics**: File counts, configuration analysis
-
-## 🏗️ Architecture
+With an API key configured, you can ask a model to explain a specific finding or
+propose a patch, scoped to that finding only.
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Frontend      │    │    Backend       │    │   AI Service    │
-│   (React)       │◄──►│    (Flask)       │◄──►│                 │
-│                 │    │                  │    │                 │
-│ • Project Upload│    │ • Security Scan  │    │ • Code Analysis │
-│ • Results Display│   │ • File Analysis  │    │ • Solutions     │
-│ • Status Monitor │   │ • LLM Integration│    │ • Explanations  │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
+┌───────────────┐   repo URL / ZIP    ┌──────────────────┐   version query   ┌──────────┐
+│  Next.js 15   │ ──────────────────▶ │   FastAPI        │ ────────────────▶ │ OSV.dev  │
+│  App Router   │ ◀── SSE progress ── │   rule engine    │                   └──────────┘
+│  TypeScript   │                     │                  │   finding + code  ┌──────────┐
+└───────────────┘ ◀── report JSON ─── └──────────────────┘ ────────────────▶ │  Gemini  │
+                                              │                              └──────────┘
+                                              ▼
+                                        ┌──────────┐
+                                        │ Postgres │
+                                        └──────────┘
 ```
-
-## 🚀 Quick Start
-
-### Frontend Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/your-username/codecopilot.git
-cd codecopilot/frontend
-
-# Install dependencies
-npm install
-
-# Set up environment variables
-cp .env.example .env.local
-
-# Start development server
-npm run dev
-```
-
-**Frontend Environment Variables:**
-```env
-VITE_BACKEND_URL=http://localhost:5000
-```
-
-### Backend Setup
-
-```bash
-# Navigate to backend directory
-cd ../backend
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set up environment variables
-cp .env.example .env
-
-# Start Flask server
-python app.py
-```
-
-**Backend Environment Variables:**
-```env
-SECRET_KEY=your-secret-key-here
-GEMINI_API_KEY=your-gemini-api-key-here
-FLASK_DEBUG=false
-PORT=5000
-```
-
-## 📁 Project Structure
-
-### Frontend (`/frontend`)
-```
-src/
-├── components/          # React components
-│   ├── ProjectUpload.jsx
-│   ├── ResultsDashboard.jsx
-│   ├── BackendStatus.jsx
-│   └── Logo.jsx
-├── hooks/              # Custom React hooks
-├── styles/             # Tailwind CSS styles
-└── main.jsx           # Application entry point
-```
-
-### Backend (`/backend`)
-```
-backend/
-├── app.py              # Flask application
-├── security_scanner.py # Security & zip bomb protection
-├── project_analyzer.py # Code analysis logic
-├── llm_analyzer.py     # Gemini AI integration
-├── requirements.txt    # Python dependencies
-└── .env.example       # Environment template
-```
-
-## 🔧 Configuration
-
-### File Size Limits
-- **Max Upload Size**: 400MB
-- **Max Extracted Size**: 800MB
-- **Max File Count**: 50,000 files
-- **Max Compression Ratio**: 50:1
-
-### Security Settings
-- **Blocked Extensions**: `.bat`, `.cmd`, `.ps1`, `.sh`, `.jar`, etc.
-- **Max Directory Depth**: 20 levels
-- **Path Traversal Protection**: Enabled
-
-## 🎯 Usage
-
-### 1. Upload Your Project
-- Zip your entire project folder (including `node_modules` if desired)
-- Drag and drop or click to upload
-- Supports projects up to 400MB
-
-### 2. Automatic Analysis
-- Security scanning and validation
-- Dependency and configuration analysis
-- AI-powered issue detection
-
-### 3. Review Results
-- Health score and project statistics
-- Categorized issues with severity levels
-- Detailed solutions and prevention tips
-
-### 4. Implement Fixes
-- Copy-paste commands for quick fixes
-- Step-by-step solution guides
-- AI-enhanced explanations
-
-## 🔌 API Documentation
-
-### Health Check
-```http
-GET /api/health
-```
-Response:
-```json
-{
-  "status": "healthy",
-  "llm_available": true,
-  "security": {
-    "max_file_size_mb": 400,
-    "max_extracted_size_mb": 800
-  }
-}
-```
-
-### Project Analysis
-```http
-POST /api/analyze
-Content-Type: multipart/form-data
-```
-Body: `file` (ZIP archive)
-
-## 🛠️ Development
-
-### Frontend Development
-```bash
-# Run in development mode
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-```
-
-### Backend Development
-```bash
-# Run with auto-reload
-flask run --debug
-
-# Run with custom port
-python app.py --port 5000
-```
-
-## 🚀 Deployment
-
-### Frontend (Vercel)
-1. Push code to GitHub
-2. Connect repository to Vercel
-3. Set environment variables in Vercel dashboard
-4. Deploy automatically on git push
-
-### Backend (Render)
-1. Connect GitHub repository to Render
-2. Set build command: `pip install -r requirements.txt`
-3. Set start command: `python app.py`
-4. Configure environment variables
-
-### Environment Variables for Production
-```env
-# Frontend
-VITE_BACKEND_URL=https://your-backend-url.render.com
-
-# Backend
-SECRET_KEY=your-production-secret-key
-GEMINI_API_KEY=your-gemini-api-key
-FLASK_DEBUG=false
-```
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📊 Performance
-
-- **Frontend**: Optimized React with Vite build system
-- **Backend**: Flask with async processing for large files
-- **Security**: Multi-layered protection against malicious uploads
-- **AI**: Efficient Gemini API integration with fallback handling
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Backend Connection Failed**
-- Check if backend server is running on port 5000
-- Verify `VITE_BACKEND_URL` environment variable
-- Check CORS configuration
-
-**File Upload Fails**
-- Ensure file is a valid ZIP archive
-- Check file size (max 400MB)
-- Verify network connectivity
-
-**AI Features Not Working**
-- Check Gemini API key configuration
-- Verify API quota and limits
-- Check backend logs for errors
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- **Google Gemini** for AI-powered code analysis
-- **React & Vite** for frontend framework
-- **Flask** for backend API
-- **Tailwind CSS** for styling
-- **Vercel & Render** for deployment platforms
-
-
 
 ---
 
+## What it checks
+
+| Rule | What it does |
+|---|---|
+| `dep/known-vulnerability` | Resolves versions from the lockfile and queries **OSV.dev**. Direct and transitive, grouped per package with real CVE/GHSA identifiers. |
+| `dep/react-dom-mismatch` | Compares resolved majors, not spec strings. |
+| `dep/no-lockfile` | Missing lockfile means non-reproducible installs. |
+| `security/hardcoded-secret` | Provider-shaped tokens (AWS, GitHub, Stripe, Slack, private keys, JWTs, DB URLs) plus entropy-checked assignments, across all files. Values are redacted in output. |
+| `security/env-not-ignored` | `.env` present but not covered by `.gitignore`. |
+| `react/missing-list-key` | `.map()` rendering JSX with no `key`, evaluated per call site. |
+| `react/array-index-key` | Index used as a key. |
+| `react/dangerously-set-inner-html` | XSS surface, flagged for review. |
+| `quality/long-file`, `quality/long-function`, `quality/deep-nesting`, `quality/todo-markers` | Structural metrics measured over source with comments and string literals removed. |
+| `config/*` | Linter, tests, CI, TypeScript `strict`, README — each gated on the detected stack. |
+
+Every finding carries a **confidence** level. Heuristic matches say so rather
+than presenting a guess as a certainty.
+
+## Scoring
+
+A weighted, saturating score with a per-category breakdown the UI explains.
+Security and dependency issues are judged on absolute count; quality scales
+sub-linearly with project size, so a large codebase is neither excused nor
+automatically condemned. Findings are weighted by severity **and** confidence.
+
+---
+
+## Running locally
+
+Requirements: **Node 20+**, **Python 3.12+**.
+
+### Backend
+
+```bash
+cd vantage-backend
+python -m venv menv && menv/Scripts/activate   # Linux/macOS: source menv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env                            # optional — see below
+python -m uvicorn app.main:app --reload --port 5000
+```
+
+API docs at <http://127.0.0.1:5000/docs>.
+
+### Frontend
+
+```bash
+cd vantage-frontend
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+App at <http://localhost:3000>.
+
+### It runs with no configuration at all
+
+Neither the AI key nor the database is required. Without them:
+
+- **No `GEMINI_API_KEY`** — analysis is unaffected. Explain / Propose fix /
+  Generate test render **disabled with the reason stated**. No canned responses
+  are ever substituted for a model.
+- **No `DATABASE_URL`** — reports are held in memory and cleared on restart.
+  `/api/health` and the UI say so explicitly.
+- **No sign-in configuration** — public repositories still analyse. The sign-in
+  control renders **disabled with the reason shown**, naming the missing
+  variables, rather than being hidden.
+
+## Sign-in
+
+Optional, and worth it for three concrete reasons:
+
+- **Reports become yours.** Without sign-in, `GET /api/reports` lists every
+  report the server holds to every caller. Signed in, History shows only your
+  analyses. Anonymous reports stay reachable by their unguessable URL — they are
+  simply never enumerated.
+- **Your GitHub rate limit, not the server's.** 5000 requests an hour instead of
+  a shared 60. Commit-churn analysis spends one request per file carrying a
+  finding, so the shared budget runs out quickly.
+- **Private repositories**, if you separately grant it.
+
+Sign-in asks for `read:user` only. `repo` — which GitHub scopes as read **and
+write** to every private repository you own — is requested exclusively through a
+separate opt-in on the Settings page.
+
+Setting it up: create an OAuth App at
+<https://github.com/settings/developers> with callback
+`<your-origin>/api/auth/github/callback`, then fill the four frontend variables
+and the three backend ones. Both `.env.example` files carry the generation
+commands for the shared secrets.
+
+## Configuration
+
+### Backend (`vantage-backend/.env`)
+
+| Variable | Required | Notes |
+|---|---|---|
+| `GEMINI_API_KEY` | no | From [AI Studio](https://aistudio.google.com/apikey). |
+| `GEMINI_MODEL` | no | Default `gemini-3.6-flash`. Free-tier quota is **per model** — if you get 429s, switching model is usually faster than waiting for a reset. `pro` models are generally unavailable on the free tier. |
+| `DATABASE_URL` | no | Postgres via **asyncpg**: `postgresql+asyncpg://user:pass@host/db`. |
+| `GITHUB_TOKEN` | no | Raises the GitHub API limit from 60/hr to 5000/hr, and allows private repos. Worth setting for a deployed instance, where the IP is shared. |
+| `CORS_ORIGINS` | no | Comma-separated frontend origins. |
+| `GITHUB_CLIENT_ID` | no | Sign-in. Same value as the frontend. |
+| `INTERNAL_API_SECRET` | no | Sign-in. **Must match the frontend exactly.** |
+| `TOKEN_ENCRYPTION_KEY` | no | Sign-in. Fernet key encrypting stored GitHub tokens. |
+
+Sign-in needs all three of the above **plus `DATABASE_URL`**. With any missing,
+`/api/health` says which.
+
+`OSV_ENABLED` (default true) turns off vulnerability scanning entirely. Archive
+and analysis limits (`MAX_EXTRACTED_BYTES`, `MAX_FILE_COUNT`,
+`MAX_COMPRESSION_RATIO`, `MAX_PATH_DEPTH`, `MAX_FINDINGS`, …) and the AI circuit
+breaker settings are documented in
+[`vantage-backend/README.md`](https://github.com/Asmodeus14/vantage-backend#configuration).
+
+### Frontend (`vantage-frontend/.env.local`)
+
+| Variable | Notes |
+|---|---|
+| `BACKEND_URL` | Server-side only. Used by Server Components and route handlers; never reaches the browser. |
+| `NEXT_PUBLIC_BACKEND_URL` | Sent to the browser. Needed for the two things that cannot be proxied: the **SSE progress stream** (serverless buffers streaming responses) and the **ZIP upload** (serverless request bodies are capped at a few MB). |
+| `GITHUB_CLIENT_ID` | Sign-in. Same value as the backend. |
+| `GITHUB_CLIENT_SECRET` | Sign-in. Server-side only; the backend deliberately never reads it. |
+| `INTERNAL_API_SECRET` | Sign-in. **Must match the backend exactly.** |
+| `SESSION_SECRET` | Sign-in. Signs the OAuth `state`. |
+
+## Testing
+
+```bash
+cd vantage-backend  && python -m pytest -q       # 172 tests
+cd vantage-frontend && npm run test              # 101 tests
+                       npm run typecheck
+                       npm run lint
+                       npm run build
+```
+
+Counts go stale; regenerate with `python -m pytest --collect-only -q | tail -1`
+and the Vitest summary line.
+
+The backend suite includes regression tests for archive path traversal
+(ZIP **and** tar), symlink and special-file entries, decompression bombs, the AI
+provider's circuit breaker, prompt-injection containment, and the report
+ownership matrix. It runs against a deliberately unconfigured service — an
+autouse fixture blanks ambient environment variables, so results do not depend
+on whose machine it runs on.
+
+The frontend suite covers the markdown renderer (including XSS), the chart
+maths and their accessible fallbacks, OAuth state signing and the open-redirect
+guard, and the report panels.
+
+## Security notes
+
+- **Archive extraction** applies one containment policy to both ZIP and tar
+  rather than relying on per-format stdlib behaviour. Verified on Python 3.12:
+  `tarfile.extractall()` with the default filter *does* let `../../x` escape,
+  and tar is the primary ingestion path. Symlinks and special files are refused;
+  size, file-count and compression limits are enforced *during* streaming.
+- **The AI endpoint cannot be used as a general-purpose model proxy.** The
+  client sends a report id, a finding id and one value from a closed enum. There
+  is no free-text parameter — prompts are assembled server-side from stored
+  analysis data.
+- **Analysed source is treated as hostile.** It is fenced with a per-request
+  random sentinel, the model is instructed not to obey it, output is
+  format-validated, and proposed fixes are diffs a human reviews. Vantage
+  never writes to your working tree.
+- Secrets are never echoed back: detected values are redacted before display.
+- **Report access.** Ids are `secrets.token_urlsafe(9)`, so a report URL is an
+  unguessable capability — which is what makes it shareable. Listing is scoped
+  to the owner; deletion requires ownership, and anonymous reports cannot be
+  deleted through the API at all, since there is no account to authorise
+  against.
+- **Stored GitHub tokens are encrypted at rest** with a key held only by the
+  backend, and sessions are stored as SHA-256 hashes rather than raw tokens.
+
+## Deployment
+
+**Backend → Render.** `render.yaml` is committed; its start command runs
+migrations before uvicorn. Set `GEMINI_API_KEY`, `DATABASE_URL`, `GITHUB_TOKEN`,
+`CORS_ORIGINS`, `GITHUB_CLIENT_ID`, `INTERNAL_API_SECRET` and
+`TOKEN_ENCRYPTION_KEY` in the dashboard.
+
+**Frontend → Vercel.** Set `BACKEND_URL`, `NEXT_PUBLIC_BACKEND_URL`,
+`GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `INTERNAL_API_SECRET` and
+`SESSION_SECRET`.
+
+Omitting the sign-in variables is supported — the app runs and says sign-in is
+unconfigured — but omitting them *by accident* is the likely mistake, so check
+`/api/health` after deploying.
+
+Free tiers sleep when idle; the UI reports a waking backend rather than
+appearing hung.
+
+## Documentation
+
+- [`docs/PRODUCT_AUDIT.md`](docs/PRODUCT_AUDIT.md) — audit of the previous version and why it was rebuilt
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the browser side
+- [`vantage-backend/docs/ARCHITECTURE.md`](https://github.com/Asmodeus14/vantage-backend/blob/master/docs/ARCHITECTURE.md) — rule engine, persistence, security model
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — known limitations and what's next
+
+## Keyboard
+
+| Shortcut | Action |
+|---|---|
+| `⌘/Ctrl K` | Command palette |
+| `/` | Focus the findings filter |
+| `j` / `k` | Next / previous finding |
+| `Esc` | Close palette or dialog |
+
+## Licence
+
+MIT.
