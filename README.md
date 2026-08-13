@@ -13,12 +13,10 @@ then whether it is getting better.**
 [![CI](https://github.com/Asmodeus14/vantage-frontend/actions/workflows/ci.yml/badge.svg)](https://github.com/Asmodeus14/vantage-frontend/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+**[Try it](https://vantage67.vercel.app)** ·
 [API repository](https://github.com/Asmodeus14/vantage-backend) ·
 [Architecture](docs/ARCHITECTURE.md) ·
 [Roadmap](docs/ROADMAP.md)
-
-<!-- Add the deployed URL here once you are happy to share it, e.g.
-     [Live demo](https://your-app.vercel.app)  -->
 
 </div>
 
@@ -42,18 +40,28 @@ or propose a patch — scoped to that one finding, returned as a diff you review
 
 ## Screenshots
 
-> **Not yet captured.** The screens worth documenting, in order of value:
->
-> | File to add | Screen |
-> |---|---|
-> | `docs/screenshots/analyse.png` | Home — repository URL, ZIP drop zone, repo picker |
-> | `docs/screenshots/report-overview.png` | Report Overview — score, severity counts, "since last analysis" |
-> | `docs/screenshots/findings.png` | Findings list with one expanded, showing the code snippet |
-> | `docs/screenshots/ai-action.png` | *Propose fix* returning a reviewed diff |
-> | `docs/screenshots/file-viewer.png` | File viewer — tree, gutter markers, findings under the code |
-> | `docs/screenshots/activity.png` | Activity — commit chart and churn table |
->
-> Drop them in `docs/screenshots/` and replace this block with the images.
+Captured from the live instance analysing
+[`expressjs/express`](https://github.com/expressjs/express).
+
+**The report.** Score with a per-category breakdown, what changed since the last
+analysis, and the trend across every run of this repository.
+
+![Report overview](docs/screenshots/report-overview.png)
+
+**Findings.** Real advisory identifiers, the offending line in context, how to
+fix it, and the three AI actions — each scoped to this one finding.
+
+![Findings](docs/screenshots/findings.png)
+
+**The file viewer.** The whole file, the tree beside it, and findings marked in
+the gutter. Folders show how many findings they contain.
+
+![File viewer](docs/screenshots/file-viewer.png)
+
+**Starting an analysis.** A repository URL, a ZIP, or — signed in — a picker of
+your own repositories.
+
+![Analyse a repository](docs/screenshots/analyse.png)
 
 ## Features
 
