@@ -10,7 +10,7 @@
 **Point it at a repository and it tells you what is wrong, exactly where —
 then whether it is getting better.**
 
-[![CI](https://github.com/Asmodeus14/vantage-frontend/actions/workflows/ci.yml/badge.svg)](https://github.com/Asmodeus14/vantage-frontend/actions/workflows/ci.yml)
+[![CI](https://github.com/Asmodeus14/Vantage/actions/workflows/ci.yml/badge.svg)](https://github.com/Asmodeus14/Vantage/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **[Try it](https://vantage67.vercel.app)** ·
@@ -206,7 +206,7 @@ The two halves are separate repositories, so clone both:
 
 ```bash
 git clone https://github.com/Asmodeus14/vantage-backend
-git clone https://github.com/Asmodeus14/vantage-frontend
+git clone https://github.com/Asmodeus14/Vantage
 ```
 
 **1 — API**, in one terminal:
