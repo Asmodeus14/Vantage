@@ -119,6 +119,23 @@ export function ReportView({
     return () => window.clearTimeout(timer);
   }, [filter, writeParams]);
 
+  /** "Show only what appeared since the last analysis", also shareable. */
+  const [onlyNew, setOnlyNew] = React.useState(
+    () => searchParams.get("new") === "1",
+  );
+
+  const selectOnlyNew = React.useCallback(
+    (next: boolean) => {
+      setOnlyNew(next);
+      // Not debounced — this one changes on a click, not a keystroke.
+      writeParams((params) => {
+        if (next) params.set("new", "1");
+        else params.delete("new");
+      });
+    },
+    [writeParams],
+  );
+
   const counts: Partial<Record<TabId, number>> = {
     findings: report.findings.length,
     dependencies: report.dependencies.length,
@@ -245,6 +262,10 @@ export function ReportView({
               report={report}
               history={history}
               onViewFindings={() => select("findings")}
+              onViewNewFindings={() => {
+                selectOnlyNew(true);
+                select("findings");
+              }}
             />
           </Tabs.Content>
           <Tabs.Content value="findings">
@@ -252,6 +273,8 @@ export function ReportView({
               report={report}
               initialQuery={filter}
               onQueryChange={setFilter}
+              initialOnlyNew={onlyNew}
+              onOnlyNewChange={selectOnlyNew}
             />
           </Tabs.Content>
           <Tabs.Content value="dependencies">

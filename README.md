@@ -43,6 +43,18 @@ propose a patch, scoped to that finding only.
 Every finding carries a **confidence** level. Heuristic matches say so rather
 than presenting a guess as a certainty.
 
+## What changed since last time
+
+Analyse a repository twice and the second report says what moved: how many
+findings were resolved, how many are new, and which. Findings carry a
+rule-supplied fingerprint that survives the edits which are not the point — a
+dependency version bump, a line count changing, code inserted above — so the
+comparison reports the two things that actually changed rather than the dozen
+that merely look different.
+
+The comparison is computed when the report is created and stored on it, so a
+shared report keeps saying what it said when you shared it.
+
 ## Scoring
 
 A weighted, saturating score with a per-category breakdown the UI explains.
@@ -153,8 +165,8 @@ breaker settings are documented in
 ## Testing
 
 ```bash
-cd vantage-backend  && python -m pytest -q       # 173 tests
-cd vantage-frontend && npm run test              # 102 tests
+cd vantage-backend  && python -m pytest -q       # 196 tests
+cd vantage-frontend && npm run test              # 111 tests
                        npm run typecheck
                        npm run lint
                        npm run build

@@ -7,6 +7,7 @@ import type { Finding } from "@/lib/types";
 
 const finding: Finding = {
   id: "f1",
+  fingerprint: "fp-f1",
   rule_id: "test/rule",
   title: "Test finding",
   description: "d",

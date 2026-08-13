@@ -20,8 +20,9 @@ vi.mock("@/components/report/ai-actions", () => ({
 }));
 
 function finding(overrides: Partial<Finding> = {}): Finding {
-  return {
+  const merged: Finding = {
     id: "f1",
+    fingerprint: "",
     rule_id: "test/rule",
     title: "Test finding",
     description: "Something is wrong.",
@@ -37,9 +38,12 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     references: [],
     ...overrides,
   };
+  // Derived from the id so distinct findings get distinct fingerprints without
+  // every caller having to say so.
+  return { ...merged, fingerprint: merged.fingerprint || `fp-${merged.id}` };
 }
 
-function report(findings: Finding[]): Report {
+function report(findings: Finding[], delta: Report["delta"] = null): Report {
   const counts = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
   for (const item of findings) counts[item.severity] += 1;
 
@@ -83,6 +87,8 @@ function report(findings: Finding[]): Report {
     },
     activity: null,
     truncated: false,
+    rule_ids: ["test/rule"],
+    delta,
   };
 }
 
@@ -212,6 +218,39 @@ describe("FindingsPanel", () => {
     // Clearing must reach the URL too, or a stale `?q=` outlives the filter.
     await user.click(screen.getByRole("button", { name: /clear filters/i }));
     expect(onQueryChange).toHaveBeenLastCalledWith("");
+  });
+
+  it("marks findings that appeared since the last analysis, and can filter to them", async () => {
+    const user = userEvent.setup();
+    const fresh = finding({ id: "a", title: "Just appeared" });
+    const old = finding({ id: "b", title: "Was here before" });
+
+    render(
+      <FindingsPanel
+        report={report([fresh, old], {
+          previous_report_id: "r0",
+          previous_created_at: new Date(Date.now() - 86_400_000).toISOString(),
+          new: [fresh.fingerprint],
+          resolved: [],
+          unchanged: 1,
+          new_rules: [],
+        })}
+      />,
+    );
+
+    const items = screen.getAllByRole("listitem");
+    expect(within(items[0]!).getByText("New")).toBeInTheDocument();
+    expect(within(items[1]!).queryByText("New")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /^New 1$/ }));
+    expect(screen.getByText("Just appeared")).toBeInTheDocument();
+    expect(screen.queryByText("Was here before")).not.toBeInTheDocument();
+  });
+
+  it("offers no New filter when there is no comparison to filter against", async () => {
+    // A control that can only ever match nothing reads as a bug in the report.
+    render(<FindingsPanel report={report([finding()])} />);
+    expect(screen.queryByRole("button", { name: /^New/ })).not.toBeInTheDocument();
   });
 
   it("surfaces confidence when a finding is heuristic", async () => {

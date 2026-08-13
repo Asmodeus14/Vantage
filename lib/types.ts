@@ -27,6 +27,11 @@ export type Grade = "A" | "B" | "C" | "D" | "F";
 
 export interface Finding {
   id: string;
+  /**
+   * Identity across reports, so the same problem is recognisable in a later
+   * run. Empty on reports produced before diffing existed.
+   */
+  fingerprint: string;
   rule_id: string;
   title: string;
   description: string;
@@ -154,6 +159,31 @@ export interface RepositoryActivity {
   unavailable_reason: string | null;
 }
 
+/** A finding present in the previous report and gone from this one. */
+export interface ResolvedFinding {
+  fingerprint: string;
+  rule_id: string;
+  title: string;
+  file: string | null;
+  severity: Severity;
+}
+
+/** What changed since the previous analysis of the same repository. */
+export interface FindingDelta {
+  previous_report_id: string;
+  previous_created_at: string;
+  /** Fingerprints of findings in this report that were not in the last one. */
+  new: string[];
+  resolved: ResolvedFinding[];
+  unchanged: number;
+  /**
+   * Rules that ran this time but not last time. Their findings are all
+   * technically new, which misleads without saying so — the code may not have
+   * changed at all.
+   */
+  new_rules: string[];
+}
+
 export interface Report {
   id: string;
   created_at: string;
@@ -168,6 +198,13 @@ export interface Report {
   /** Absent for uploads, and when history could not be read at all. */
   activity: RepositoryActivity | null;
   truncated: boolean;
+  /** Every rule that ran, including those that found nothing. */
+  rule_ids: string[];
+  /**
+   * Absent on a first analysis, on uploads, and when no comparable earlier
+   * report is visible to this owner.
+   */
+  delta: FindingDelta | null;
 }
 
 /* -------------------------------------------------------------------------- */

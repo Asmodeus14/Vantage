@@ -58,6 +58,8 @@ function report(
     },
     activity,
     truncated: false,
+    rule_ids: [],
+    delta: null,
   };
 }
 

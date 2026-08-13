@@ -25,6 +25,8 @@ export function FindingsPanel({
   report,
   initialQuery = "",
   onQueryChange,
+  initialOnlyNew = false,
+  onOnlyNewChange,
 }: {
   report: Report;
   /**
@@ -38,10 +40,14 @@ export function FindingsPanel({
    * in the URL. Optional: the panel works standalone without it.
    */
   onQueryChange?: (query: string) => void;
+  /** Start with the "New" filter on — the Overview delta links in this way. */
+  initialOnlyNew?: boolean;
+  onOnlyNewChange?: (onlyNew: boolean) => void;
 }) {
   const [query, setQuery] = React.useState(initialQuery);
   const [severities, setSeverities] = React.useState<Set<Severity>>(new Set());
   const [category, setCategory] = React.useState<Category | "all">("all");
+  const [onlyNew, setOnlyNew] = React.useState(initialOnlyNew);
   const [expanded, setExpanded] = React.useState<string | null>(
     report.findings[0]?.id ?? null,
   );
@@ -54,6 +60,10 @@ export function FindingsPanel({
     if (initialQuery) setQuery(initialQuery);
   }, [initialQuery]);
 
+  React.useEffect(() => {
+    if (initialOnlyNew) setOnlyNew(true);
+  }, [initialOnlyNew]);
+
   /** Every user-driven filter change goes through here, so none escapes the URL. */
   const updateQuery = React.useCallback(
     (next: string) => {
@@ -61,6 +71,24 @@ export function FindingsPanel({
       onQueryChange?.(next);
     },
     [onQueryChange],
+  );
+
+  const updateOnlyNew = React.useCallback(
+    (next: boolean) => {
+      setOnlyNew(next);
+      onOnlyNewChange?.(next);
+    },
+    [onOnlyNewChange],
+  );
+
+  /**
+   * Fingerprints that appeared since the previous analysis. A `Set` because the
+   * list is checked once per finding per render, and `delta.new` is an array on
+   * the wire.
+   */
+  const newPrints = React.useMemo(
+    () => new Set(report.delta?.new ?? []),
+    [report.delta],
   );
 
   const searchRef = React.useRef<HTMLInputElement>(null);
@@ -77,6 +105,7 @@ export function FindingsPanel({
       .filter((finding) => {
         if (severities.size > 0 && !severities.has(finding.severity)) return false;
         if (category !== "all" && finding.category !== category) return false;
+        if (onlyNew && !newPrints.has(finding.fingerprint)) return false;
         if (!needle) return true;
         return (
           finding.title.toLowerCase().includes(needle) ||
@@ -90,7 +119,7 @@ export function FindingsPanel({
           compareSeverity(a.severity, b.severity) ||
           (a.file ?? "").localeCompare(b.file ?? ""),
       );
-  }, [report.findings, query, severities, category]);
+  }, [report.findings, query, severities, category, onlyNew, newPrints]);
 
   // `/` focuses search; j/k move through the list — familiar from pagers and
   // review tools. None of these shadow a browser binding.
@@ -139,7 +168,15 @@ export function FindingsPanel({
     });
   };
 
-  const filtered = severities.size > 0 || category !== "all" || query.trim() !== "";
+  const filtered =
+    severities.size > 0 || category !== "all" || query.trim() !== "" || onlyNew;
+
+  const clearFilters = () => {
+    updateQuery("");
+    setSeverities(new Set());
+    setCategory("all");
+    updateOnlyNew(false);
+  };
 
   if (report.findings.length === 0) {
     return (
@@ -219,16 +256,29 @@ export function FindingsPanel({
           ))}
         </select>
 
-        {filtered && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              updateQuery("");
-              setSeverities(new Set());
-              setCategory("all");
-            }}
+        {/*
+          Only offered when there is a comparison to filter against. A "New"
+          control on a first analysis would match nothing and imply the report
+          is missing something.
+        */}
+        {newPrints.size > 0 && (
+          <button
+            type="button"
+            onClick={() => updateOnlyNew(!onlyNew)}
+            aria-pressed={onlyNew}
+            className={cn(
+              "h-8 rounded-md border px-2 text-xs transition-colors duration-(--duration-fast)",
+              onlyNew
+                ? "border-accent bg-accent-subtle text-fg"
+                : "border-border text-fg-muted hover:border-border-strong hover:text-fg",
+            )}
           >
+            New <span className="tabular text-fg-subtle">{newPrints.size}</span>
+          </button>
+        )}
+
+        {filtered && (
+          <Button variant="ghost" size="sm" onClick={clearFilters}>
             <X aria-hidden />
             Clear
           </Button>
@@ -252,15 +302,7 @@ export function FindingsPanel({
             title="Nothing matches those filters"
             description="Try a different search term, or clear the filters to see all findings."
             action={
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  updateQuery("");
-                  setSeverities(new Set());
-                  setCategory("all");
-                }}
-              >
+              <Button variant="secondary" size="sm" onClick={clearFilters}>
                 Clear filters
               </Button>
             }
@@ -274,6 +316,7 @@ export function FindingsPanel({
                 key={finding.id}
                 finding={finding}
                 report={report}
+                isNew={newPrints.has(finding.fingerprint)}
                 expanded={expanded === finding.id}
                 onToggle={() =>
                   setExpanded((current) => (current === finding.id ? null : finding.id))
@@ -290,11 +333,14 @@ export function FindingsPanel({
 function FindingRow({
   finding,
   report,
+  isNew,
   expanded,
   onToggle,
 }: {
   finding: Finding;
   report: Report;
+  /** Appeared since the previous analysis of this repository. */
+  isNew: boolean;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -321,6 +367,17 @@ function FindingRow({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm text-fg">{finding.title}</span>
           <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-fg-subtle">
+            {/*
+              A word, not a badge. These sit beside a severity chip already, and
+              a second coloured pill on the same row would compete with the one
+              that carries the urgency.
+            */}
+            {isNew && (
+              <>
+                <span className="font-medium text-fg-muted">New</span>
+                <span aria-hidden>·</span>
+              </>
+            )}
             {finding.file ? (
               <span className="font-mono">
                 {finding.file}

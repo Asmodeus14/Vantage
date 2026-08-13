@@ -190,6 +190,26 @@ was written after seeing the alternative look wrong:
   which is itself an answer.
 - The **Activity tab is absent**, not empty, when `report.activity` is null —
   uploads have no repository to query.
+- **`delta-summary.tsx`** renders nothing at all when `report.delta` is null. A
+  "0 resolved, 0 new" line on a first analysis asserts a comparison that never
+  happened. When there *is* a comparison and nothing moved, it says so in a
+  sentence — "settled" is an answer.
+
+### What changed since last time
+
+`report.delta` carries fingerprints, so the UI does the joining. Three surfaces:
+a sentence under the score on Overview, a `New` filter in the findings list, and
+a resolved list — which exists because resolved findings are absent from
+`report.findings` by definition and have nowhere else to appear.
+
+New findings are marked with **a word, not a badge**. Those rows already carry a
+severity chip, and a second coloured pill would compete with the one carrying
+the urgency. The `New` filter is only rendered when a delta exists; a control
+that can only ever match nothing reads as a fault in the report.
+
+The caveat about rules added between runs is shown only when such a rule
+actually produced a new finding. A caveat displayed when it does not apply
+teaches people to skip it for the times it does.
 
 Partial results always carry the reason verbatim from the API rather than a
 generic "unavailable".

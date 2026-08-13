@@ -15,18 +15,17 @@ constrained way, not aspirational marketing.
 | **JS/TS-weighted rules** | Project detection is multi-language, but most correctness rules target JS/TS/React. Python and Go get structural and secret checks only. | Add per-ecosystem rule packs. |
 | **Transitive dependency noise** | Transitive advisories are reported only at high/critical and downgraded one level, which is a heuristic compromise rather than reachability analysis. | Parse the lockfile dependency graph to determine whether the vulnerable path is actually reachable. |
 | **Rate limiting is per-IP, in-memory** | Resets on restart and is per-instance. Signed-in users share the anonymous bucket. | Redis-backed limiter, keyed on the session when present. |
-| **`duration_seconds` is an `Integer`** | Sub-second analyses round to 0 on Postgres but not in memory, so the two store implementations disagree. | Alembic revision changing the column type. |
-| **Findings have no identity across runs** | Ids include `line` and `title`, both of which move when unrelated code changes — so the same problem can read as one resolved plus one new. Blocks suppressions entirely. | A rule-supplied stable fingerprint. |
+| **Some findings still churn between runs** | Rules emitting several findings per file with nothing to tell them apart — `react/array-index-key`, `react/missing-list-key` — key on `line`, so inserting code above one reads as resolved-plus-new. Renaming a file has the same effect for every rule. | Accepted, not fixed: there is no natural discriminator, and rename detection is a larger change. |
 | **A signed-in user's ZIP upload is attributed anonymously** | The upload posts directly to the API to clear the serverless body cap, so it cannot carry the session cookie. | A single-use upload ticket issued by the frontend. |
 | **Sign-in is untested against real GitHub** | The consent step needs a human. The third-party-cookie failure mode passes every Chrome test. | Verify in Safari and Firefox strict mode. |
 
 ## Next features, in rough value order
 
-1. **Re-run and compare.** Answers "did this get better?", which is the
-   question a maintainer actually has. Reports are already immutable and
-   addressable and the per-repository history is already fetched for the trend
-   chart — the missing piece is a finding identity that survives unrelated
-   edits. Prerequisite for baselines.
+1. **Baselines.** Mark existing findings as accepted so a report shows only what
+   is new — the thing that makes a scanner usable on a legacy codebase. Now
+   unblocked: fingerprints are stable, so a suppression survives a re-run.
+   Applied at read time rather than analysis time, so unsuppressing restores the
+   finding without re-analysing.
 2. **File viewer with the finding gutter.** Turns "line 47" into "here is line
    47 in context". Requires persisting blobs, which also fixes *Propose fix*
    returning `INSUFFICIENT_CONTEXT` on whole-file findings.
@@ -34,16 +33,20 @@ constrained way, not aspirational marketing.
    lockfile mentions a vulnerable package" and "your code can actually reach it"
    is most of the signal-to-noise problem in dependency scanning.
 4. **PR/CI mode.** A GitHub Action posting findings as review comments on
-   changed lines. The engine already produces exactly the right shape.
-5. **Baselines.** Mark existing findings as accepted so a report shows only what
-   is new — the thing that makes a scanner usable on a legacy codebase. Depends
-   on stable fingerprints (1); without them a suppression cannot survive a
-   re-run.
-6. **Per-ecosystem rule packs.** Python (`requirements`/`pyproject` + PyPI
+   changed lines. The engine already produces exactly the right shape, and the
+   delta gives it the "only comment on what this PR introduced" behaviour that
+   makes such a bot tolerable.
+5. **Per-ecosystem rule packs.** Python (`requirements`/`pyproject` + PyPI
    advisories) is the obvious next one.
-7. **Streaming AI responses.** The provider already supports `stream()`; the
+6. **Streaming AI responses.** The provider already supports `stream()`; the
    endpoint returns complete responses. Streaming would make *Explain* feel
    immediate.
+
+## Shipped since this document was written
+
+- **Re-run and compare.** Findings carry a rule-supplied `fingerprint`, and each
+  report stores a `delta` against the previous analysis of the same repository.
+  See "Finding identity" in the backend architecture document.
 
 ## Deliberately not planned
 

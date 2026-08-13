@@ -2,6 +2,7 @@
 
 import { ArrowRight, ShieldAlert } from "lucide-react";
 
+import { DeltaSummary } from "@/components/report/delta-summary";
 import { TrendPanel } from "@/components/report/trend-panel";
 import { Tooltip } from "@/components/ui/tooltip";
 import { CATEGORY_LABELS, SEVERITY_META, scoreColour } from "@/lib/severity";
@@ -23,11 +24,14 @@ export function OverviewPanel({
   report,
   history,
   onViewFindings,
+  onViewNewFindings,
 }: {
   report: Report;
   /** Previous analyses of the same repository, newest first. */
   history: ReportSummary[];
   onViewFindings: () => void;
+  /** Jump to Findings showing only what appeared since the last analysis. */
+  onViewNewFindings: () => void;
 }) {
   const { project, score, severity_counts: counts } = report;
   const withFindings = score.categories
@@ -41,6 +45,13 @@ export function OverviewPanel({
         <p className="max-w-[70ch] text-pretty text-[15px] leading-relaxed text-fg">
           {score.summary}
         </p>
+
+        {/*
+          Directly under the score, because "did it get better?" is the reading
+          most people apply to the number above whether or not the data is
+          there to support it.
+        */}
+        <DeltaSummary report={report} onViewNew={onViewNewFindings} />
 
         <Section
           title="Findings"
