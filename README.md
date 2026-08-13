@@ -185,7 +185,7 @@ breaker settings are documented in
 ## Testing
 
 ```bash
-cd vantage-backend  && python -m pytest -q       # 244 tests
+cd vantage-backend  && python -m pytest -q       # 250 tests
 cd vantage-frontend && npm run test              # 131 tests
                        npm run typecheck
                        npm run lint

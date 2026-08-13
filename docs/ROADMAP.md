@@ -8,7 +8,7 @@ constrained way, not aspirational marketing.
 | Limitation | Detail | Fix |
 |---|---|---|
 | **Jobs are in-process** | An analysis job lives in the memory of the web process that started it. Correct for one instance; a second instance would not find the job. | Move the queue to Redis or Postgres `LISTEN/NOTIFY`. |
-| **AI actions still see only a snippet** | The file viewer can now read whole files, but `routers/ai.py` still builds its prompt from the finding's ±3-line snippet, so *Propose fix* returns `INSUFFICIENT_CONTEXT` on whole-file findings. The plumbing to fix this exists. | Have the AI router read through `SourceProvider` too. |
+| **Whole-file findings cannot be fixed by a diff** | *Propose fix* now reads a 160-line window of the real file, which is enough for a located finding. It is not enough for `quality/long-file` on a 1,187-line file, and the model correctly answers `INSUFFICIENT_CONTEXT`. This is not a context bug: "split this file" is not a diff-shaped answer. | Either stop offering *Propose fix* for structural findings, or give those an action of their own. |
 | **A repository's source can disappear** | It is re-fetched from GitHub pinned to the analysed commit, so the viewer breaks if the repository is deleted, made private, or force-pushed. The chosen trade for not storing every repository's source. | The page says which of those happened; storing blobs for repositories too is the fix, at a storage cost. |
 | **Findings snippets are not highlighted** | Shiki is fully wired for AI and markdown output, but `components/report/code-snippet.tsx` still renders plain monospace with the offending line marked. | Reuse `lib/highlighter.ts` in the snippet component. |
 | **Some backend tests touch the network** | Two API tests start a real analysis in a background task, which reaches GitHub/OSV. They pass, but they make the suite slower and weather-dependent. | Inject a fake runner in those tests. |
@@ -21,19 +21,16 @@ constrained way, not aspirational marketing.
 
 ## Next features, in rough value order
 
-1. **Wider context for AI actions.** `SourceProvider` can read whole files now;
-   the AI router still builds prompts from the ±3-line snippet. Small change,
-   removes the `INSUFFICIENT_CONTEXT` answer.
-2. **Reachability for transitive advisories.** The difference between "your
+1. **Reachability for transitive advisories.** The difference between "your
    lockfile mentions a vulnerable package" and "your code can actually reach it"
    is most of the signal-to-noise problem in dependency scanning.
-3. **PR/CI mode.** A GitHub Action posting findings as review comments on
+2. **PR/CI mode.** A GitHub Action posting findings as review comments on
    changed lines. The engine already produces exactly the right shape, and the
    delta gives it the "only comment on what this PR introduced" behaviour that
    makes such a bot tolerable.
-4. **Per-ecosystem rule packs.** Python (`requirements`/`pyproject` + PyPI
+3. **Per-ecosystem rule packs.** Python (`requirements`/`pyproject` + PyPI
    advisories) is the obvious next one.
-5. **Streaming AI responses.** The provider already supports `stream()`; the
+4. **Streaming AI responses.** The provider already supports `stream()`; the
    endpoint returns complete responses. Streaming would make *Explain* feel
    immediate.
 
@@ -42,6 +39,10 @@ constrained way, not aspirational marketing.
 - **Re-run and compare.** Findings carry a rule-supplied `fingerprint`, and each
   report stores a `delta` against the previous analysis of the same repository.
   See "Finding identity" in the backend architecture document.
+- **Wider AI context.** *Propose fix* reads a 160-line window of the real file
+  through `SourceProvider`, centred on the finding, falling back to the snippet
+  when source is unreachable. Verified producing correct dependency-bump diffs
+  that were previously `INSUFFICIENT_CONTEXT`.
 - **File viewer.** `/r/[id]/f/[...path]` with a tree, per-file finding counts and
   gutter markers. Repository source is re-fetched pinned to the analysed commit;
   uploads store theirs. See "Reading source after the fact".
