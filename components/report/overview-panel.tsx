@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense, use } from "react";
 import { ArrowRight, ShieldAlert } from "lucide-react";
 
 import { DeltaSummary } from "@/components/report/delta-summary";
@@ -28,7 +29,7 @@ export function OverviewPanel({
 }: {
   report: Report;
   /** Previous analyses of the same repository, newest first. */
-  history: ReportSummary[];
+  history: Promise<ReportSummary[]>;
   onViewFindings: () => void;
   /** Jump to Findings showing only what appeared since the last analysis. */
   onViewNewFindings: () => void;
@@ -156,11 +157,13 @@ export function OverviewPanel({
         {/* Only for repositories: an uploaded archive has no stable identity to
             trend against, so there is nothing honest to show. */}
         {report.source.repository && (
-          <TrendPanel
-            history={history}
-            currentId={report.id}
-            repository={report.source.repository}
-          />
+          <Suspense fallback={<TrendSkeleton />}>
+            <TrendPanelAsync
+              history={history}
+              currentId={report.id}
+              repository={report.source.repository}
+            />
+          </Suspense>
         )}
       </div>
 
@@ -310,6 +313,46 @@ function Practice({ ok, label }: { ok: boolean; label: string }) {
     </li>
   );
 }
+
+/**
+ * Unwraps the history promise so `TrendPanel` keeps taking a plain array.
+ *
+ * The async concern lives here rather than in the panel: the panel is pure and
+ * eight tests render it with a literal list, and threading a promise through
+ * its signature would have made every one of them construct one for nothing.
+ */
+function TrendPanelAsync({
+  history,
+  currentId,
+  repository,
+}: {
+  history: Promise<ReportSummary[]>;
+  currentId: string;
+  repository: string;
+}) {
+  return (
+    <TrendPanel
+      history={use(history)}
+      currentId={currentId}
+      repository={repository}
+    />
+  );
+}
+
+
+/**
+ * Reserves the chart's real height so nothing shifts when it arrives. CLS is 0
+ * on this page and streaming must not be what breaks it.
+ */
+function TrendSkeleton() {
+  return (
+    <section aria-hidden>
+      <div className="mb-3 h-4 w-24 animate-pulse rounded bg-surface-raised" />
+      <div className="h-[200px] animate-pulse rounded-md bg-surface-raised" />
+    </section>
+  );
+}
+
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (

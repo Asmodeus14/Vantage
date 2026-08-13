@@ -305,3 +305,40 @@ describe("FindingsPanel", () => {
     expect(screen.getByText("Needs review")).toBeInTheDocument();
   });
 });
+
+describe("FindingsPanel — incremental rendering", () => {
+  const many = Array.from({ length: 75 }, (_, i) =>
+    finding({ id: `f${i}`, title: `Finding number ${i}` }),
+  );
+
+  it("renders a page at a time rather than every finding on load", () => {
+    // 500 findings are permitted, and every row hydrates. Mounting the whole
+    // list was the largest single piece of main-thread work on this page.
+    render(<FindingsPanel report={report(many)} />);
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(30);
+    expect(screen.getByText(/45 more findings not shown/)).toBeInTheDocument();
+    // The true total stays visible, so the count is never misleading.
+    expect(screen.getByText(/75 of 75 findings/)).toBeInTheDocument();
+  });
+
+  it("extends on request", async () => {
+    const user = userEvent.setup();
+    render(<FindingsPanel report={report(many)} />);
+
+    await user.click(screen.getByRole("button", { name: /show 30 more/i }));
+    expect(screen.getAllByRole("listitem")).toHaveLength(60);
+  });
+
+  it("shows the top of a narrowed result rather than a stale offset", async () => {
+    const user = userEvent.setup();
+    render(<FindingsPanel report={report(many)} />);
+
+    await user.click(screen.getByRole("button", { name: /show 30 more/i }));
+    await user.type(screen.getByLabelText("Filter findings"), "number 7");
+
+    // Filtering resets the page, so what is on screen is the start of the
+    // new result set.
+    expect(screen.getByText("Finding number 7")).toBeInTheDocument();
+  });
+});

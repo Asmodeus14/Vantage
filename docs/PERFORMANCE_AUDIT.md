@@ -3,9 +3,9 @@
 Profiling of the deployed instance against a Lighthouse run reporting
 Performance 40, FCP 3.5s, LCP 5.2s, TBT 1,730ms, CLS 0.
 
-**Status: profiled, one fix landed, the main work not done.** This document is
-written mid-way on purpose — the diagnosis is worth more than a partial fix, and
-recording it honestly is better than implying the job is finished.
+**Status: profiled, three fixes landed, no after-measurement.** The diagnosis
+below is measured; the effect of the fixes is reasoned. Nobody has run Lighthouse
+against the deployed result yet, and this document does not pretend otherwise.
 
 ---
 
@@ -93,38 +93,42 @@ warm instance that is tens of milliseconds; on a cold one it is seconds.
 
 ---
 
+**The report no longer blocks on its trend history.** `loadHistory` is passed
+down unresolved and unwrapped by `use()` inside a `<Suspense>` boundary around
+the chart alone. The report paints on the first API response; the chart arrives
+behind it. The fallback reserves the chart's real height, because CLS is 0 on
+this page and streaming must not be what breaks it.
+
+`TrendPanel` still takes a plain array — the promise is unwrapped by a small
+wrapper. Eight tests render that panel with a literal list, and threading a
+promise through its signature would have made every one of them construct one
+for nothing.
+
+**Findings render a page at a time.** 30 rows, extended on request, reset
+whenever the filter changes so a narrowed result shows its own top rather than a
+stale offset. Keyboard navigation extends the page when it walks past the end,
+or `scrollIntoView` would look for a row that is not in the DOM.
+
+Incremental rather than windowed, deliberately. `@tanstack/react-virtual` is
+installed and still unused: rows expand to arbitrary heights, carry `j`/`k`
+navigation, and sit inside a list a screen reader walks. A measured virtualiser
+puts all three at risk to save work that paging already avoids. This is the same
+judgement made in the file viewer, for the same reason.
+
+---
+
 ## Not fixed, with the plan
 
 Ordered by expected impact.
 
-### 1. The report blocks on its trend history
-
-`loadHistory` is awaited before anything renders, and it *depends* on the report
-having loaded, so it cannot simply be parallelised. But the trend chart is
-explicitly an addition rather than the point of the page.
-
-**Plan:** pass the unresolved promise into a `<Suspense>` boundary around
-`TrendPanel` only, unwrapping with `use()`. The report paints on the first
-response; the chart streams in behind it. Not attempted here because it touches
-three files and a half-finished streaming refactor is worse than none.
-
-### 2. Render findings incrementally
-
-`@tanstack/react-virtual` is already a dependency and unused. It was left out of
-the file viewer deliberately — a few hundred lines does not need it — but a
-findings list capped at 500 rows does.
-
-**Plan:** virtualise `FindingsPanel`'s list, or render the first ~30 and extend
-on scroll. Keep the hidden accessible list intact.
-
-### 3. Mount only the selected tab
+### 1. Mount only the selected tab
 
 All four panels mount on hydration. Radix Tabs can defer unmounted content.
 
 **Plan:** render inactive tab content on first activation, preserving the
 `?tab=` deep link.
 
-### 4. Make the shell static
+### 2. Make the shell static
 
 The home page is `force-dynamic` only because it lists recent analyses. The
 shell — header, form, examples — never changes.

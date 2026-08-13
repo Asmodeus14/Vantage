@@ -35,11 +35,12 @@ const TAB_IDS: readonly string[] = TABS.map((tab) => tab.id);
 
 export function ReportView({
   report,
-  history = [],
+  history,
 }: {
   report: Report;
   /** Previous analyses of the same repository, newest first. */
-  history?: ReportSummary[];
+  /** Unresolved on purpose — see the Suspense boundary in OverviewPanel. */
+  history: Promise<ReportSummary[]>;
 }) {
   const searchParams = useSearchParams();
 

@@ -74,6 +74,17 @@ export default async function ReportPage({
   const report = await load(id);
   if (!report) notFound();
 
-  const history = await loadHistory(report.source.repository);
+  /*
+    Deliberately not awaited.
+
+    The trend chart needs the report to have loaded before it can ask for that
+    repository's history, so the two cannot run in parallel — but the chart is
+    an addition rather than the point of the page. Awaiting it here held the
+    entire report behind a second round-trip to a host that sleeps when idle.
+
+    The promise is handed to a Suspense boundary around the chart alone, so the
+    report paints on the first response and the chart arrives behind it.
+  */
+  const history = loadHistory(report.source.repository);
   return <ReportView report={report} history={history} />;
 }

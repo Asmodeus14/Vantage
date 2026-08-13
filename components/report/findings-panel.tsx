@@ -30,6 +30,9 @@ import { cn, pluralise } from "@/lib/utils";
 import { SEVERITIES } from "@/lib/types";
 import type { Category, Finding, Report, Severity } from "@/lib/types";
 
+// Enough to fill a tall screen without mounting a report's worth of rows.
+const PAGE_SIZE = 30;
+
 export function FindingsPanel({
   report,
   initialQuery = "",
@@ -169,8 +172,13 @@ export function FindingsPanel({
           event.key === "j"
             ? Math.min(index + 1, visible.length - 1)
             : Math.max(index - 1, 0);
-        const target = visible[next === -1 ? 0 : next];
+        const index2 = next === -1 ? 0 : next;
+        const target = visible[index2];
         if (target) {
+          // Keyboard navigation can walk past what is currently rendered.
+          // Extend first, or `scrollIntoView` would look for a row that is not
+          // in the DOM and the selection would appear to do nothing.
+          setLimit((current) => (index2 >= current ? index2 + PAGE_SIZE : current));
           setExpanded(target.id);
           listRef.current
             ?.querySelector(`[data-finding="${target.id}"]`)
@@ -194,6 +202,27 @@ export function FindingsPanel({
 
   const filtered =
     severities.size > 0 || category !== "all" || query.trim() !== "" || onlyNew;
+
+  /*
+    Render a page at a time.
+
+    `MAX_FINDINGS` allows 500, and every row hydrates on load — mounting the
+    whole list was the largest single piece of main-thread work on this page.
+    Incremental rather than windowed on purpose: rows expand to arbitrary
+    heights, carry j/k navigation and sit inside a list a screen reader walks,
+    and a measured virtualiser puts all three at risk to save work that this
+    already avoids.
+
+    The count resets whenever the filter changes, so narrowing always shows the
+    top of the new result rather than a stale offset.
+  */
+  const [limit, setLimit] = React.useState(PAGE_SIZE);
+  React.useEffect(() => {
+    setLimit(PAGE_SIZE);
+  }, [query, severities, category, onlyNew, showSuppressed]);
+
+  const rendered = visible.slice(0, limit);
+  const remaining = visible.length - rendered.length;
 
   const clearFilters = () => {
     updateQuery("");
@@ -356,7 +385,7 @@ export function FindingsPanel({
       ) : (
         <Panel className="overflow-hidden">
           <ul ref={listRef} className="divide-y divide-border">
-            {visible.map((finding) => (
+            {rendered.map((finding) => (
               <FindingRow
                 key={finding.id}
                 finding={finding}
@@ -369,6 +398,21 @@ export function FindingsPanel({
               />
             ))}
           </ul>
+
+          {remaining > 0 && (
+            <div className="border-t border-border p-3 text-center">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setLimit((current) => current + PAGE_SIZE)}
+              >
+                Show {Math.min(remaining, PAGE_SIZE)} more
+              </Button>
+              <p className="mt-1.5 text-xs text-fg-subtle">
+                {remaining} more {pluralise(remaining, "finding")} not shown
+              </p>
+            </div>
+          )}
         </Panel>
       )}
     </div>
