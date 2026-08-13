@@ -254,6 +254,11 @@ appearing hung.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the browser side
 - [`vantage-backend/docs/ARCHITECTURE.md`](https://github.com/Asmodeus14/vantage-backend/blob/master/docs/ARCHITECTURE.md) — rule engine, persistence, security model
 - [`docs/ROADMAP.md`](docs/ROADMAP.md) — known limitations and what's next
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — setup, conventions, and the things that
+  are deliberate rather than accidental
+- [`SECURITY.md`](SECURITY.md) — reporting a vulnerability, and the XSS and
+  cookie model
+- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
 
 ## Keyboard
 
@@ -266,4 +271,4 @@ appearing hung.
 
 ## Licence
 
-MIT.
+[MIT](LICENSE).

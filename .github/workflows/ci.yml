@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+
+      # Each is reported separately rather than chained, so a red build says
+      # which of the four failed without opening the log.
+      - name: Lint
+        run: npm run lint
+
+      - name: Types
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm run test
+
+      # Last, and not redundant: several App Router mistakes — a Server
+      # Component importing a Client-only hook, a bad `generateMetadata` — only
+      # surface here.
+      - name: Build
+        run: npm run build
+        env:
+          # Build-time placeholders. Nothing here reaches a deployed instance;
+          # the real values come from the hosting platform's environment.
+          BACKEND_URL: http://127.0.0.1:5000
+          NEXT_PUBLIC_BACKEND_URL: http://127.0.0.1:5000

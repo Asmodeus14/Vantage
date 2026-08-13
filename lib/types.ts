@@ -169,6 +169,17 @@ export interface RepositoryActivity {
   unavailable_reason: string | null;
 }
 
+/** A repository the signed-in user can reach, for the picker. */
+export interface RepositoryOption {
+  full_name: string;
+  description: string | null;
+  private: boolean;
+  language: string | null;
+  default_branch: string | null;
+  html_url: string | null;
+  pushed_at: string | null;
+}
+
 export interface SourceFileEntry {
   path: string;
   size: number;

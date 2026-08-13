@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { FileArchive, Github, Upload, X } from "lucide-react";
 
+import { RepoPicker } from "@/components/repo-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/states";
@@ -153,6 +154,13 @@ export function AnalyseForm() {
               disabled={submitting}
             />
           </div>
+          {/* Renders only when signed in — the list is the user's own. */}
+          <RepoPicker
+            onSelect={(selected) => {
+              setUrl(selected);
+              inputRef.current?.focus();
+            }}
+          />
           <Button
             type="submit"
             variant="primary"
