@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import * as Tabs from "@radix-ui/react-tabs";
 import {
@@ -14,13 +15,43 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 
-import { ActivityPanel } from "@/components/report/activity-panel";
-import { FindingsPanel } from "@/components/report/findings-panel";
-import { DependenciesPanel } from "@/components/report/dependencies-panel";
 import { OverviewPanel } from "@/components/report/overview-panel";
+import { PanelSkeleton } from "@/components/report/panel-skeleton";
 import { cn, formatDuration, formatRelativeTime } from "@/lib/utils";
 import { scoreColour } from "@/lib/severity";
 import type { Report, ReportSummary } from "@/lib/types";
+
+/**
+ * Overview opens by default, so it is imported normally. The other three are
+ * code behind a tab nobody has clicked yet.
+ *
+ * Radix already declines to mount inactive tab content, which is why a trace of
+ * this page found a 153 kB chunk that was 99.8% unused — downloaded and parsed,
+ * then never run. Worse, it was not requested until 6.7s in, because it is
+ * referenced from a late chunk of the streamed HTML, so it was competing for
+ * bandwidth with the content the reader is actually waiting for.
+ *
+ * `ssr: false` is deliberate. These panels only appear after a click or a
+ * `?tab=` deep link, and server-rendering them would put the markup back into
+ * the payload that splitting them out was meant to shrink.
+ */
+const FindingsPanel = dynamic(
+  () => import("@/components/report/findings-panel").then((m) => m.FindingsPanel),
+  { ssr: false, loading: () => <PanelSkeleton rows={8} /> },
+);
+
+const DependenciesPanel = dynamic(
+  () =>
+    import("@/components/report/dependencies-panel").then(
+      (m) => m.DependenciesPanel,
+    ),
+  { ssr: false, loading: () => <PanelSkeleton rows={6} /> },
+);
+
+const ActivityPanel = dynamic(
+  () => import("@/components/report/activity-panel").then((m) => m.ActivityPanel),
+  { ssr: false, loading: () => <PanelSkeleton rows={6} /> },
+);
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
