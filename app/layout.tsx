@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 
 import { AppShell } from "@/components/app-shell";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -43,6 +44,9 @@ export default function RootLayout({
         <ThemeProvider>
           <AppShell>{children}</AppShell>
         </ThemeProvider>
+        {/* Last in the body so its script is discovered after the page's own,
+            and outside AppShell so a route that throws still reports the view. */}
+        <Analytics />
       </body>
     </html>
   );

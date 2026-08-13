@@ -28,6 +28,22 @@ const load = cache(async (id: string) => {
 });
 
 /**
+ * How long the trend chart may hold the response open.
+ *
+ * A streamed document does not finish until every Suspense boundary inside it
+ * has resolved, and this one inherited the API client's 30s default. A trace
+ * measured the document still streaming at 10.9s against a 42ms time to first
+ * byte — the shell and the report had painted long before, and the connection
+ * was being held open by a chart.
+ *
+ * Three seconds is roughly twice what a warm instance takes. Past that the
+ * trend is dropped, which is a path the page already handles: the `catch`
+ * below has always returned an empty history when the call fails, and a
+ * timeout is only another way for it to fail.
+ */
+const HISTORY_TIMEOUT_MS = 3_000;
+
+/**
  * Previous analyses of the same repository, for the trend panel.
  *
  * Fetched on the server alongside the report so the chart is in the first
@@ -37,7 +53,11 @@ const load = cache(async (id: string) => {
 async function loadHistory(repository: string | null): Promise<ReportSummary[]> {
   if (!repository) return [];
   try {
-    return await api.listReports(20, { repository, headers: await authHeaders() });
+    return await api.listReports(20, {
+      repository,
+      headers: await authHeaders(),
+      timeoutMs: HISTORY_TIMEOUT_MS,
+    });
   } catch {
     return [];
   }
