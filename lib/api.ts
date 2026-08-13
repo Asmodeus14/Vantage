@@ -13,6 +13,8 @@ import type {
   JobStarted,
   Report,
   ReportSummary,
+  SourceFile,
+  SourceTree,
 } from "@/lib/types";
 
 export class ApiError extends Error {
@@ -128,6 +130,23 @@ export const api = {
 
   getReport(id: string, options?: RequestOptions): Promise<Report> {
     return request<Report>(`/api/reports/${encodeURIComponent(id)}`, options);
+  },
+
+  listFiles(id: string, options?: RequestOptions): Promise<SourceTree> {
+    return request<SourceTree>(
+      `/api/reports/${encodeURIComponent(id)}/files`,
+      options,
+    );
+  },
+
+  readFile(id: string, path: string, options?: RequestOptions): Promise<SourceFile> {
+    const query = new URLSearchParams({ path });
+    return request<SourceFile>(
+      `/api/reports/${encodeURIComponent(id)}/file?${query}`,
+      // Reading a repository file goes out to GitHub, which is slower than a
+      // database read and occasionally rate limited.
+      { timeoutMs: 20_000, ...options },
+    );
   },
 
   deleteReport(id: string, options?: RequestOptions): Promise<void> {

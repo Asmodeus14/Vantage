@@ -1,7 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, ChevronRight, ExternalLink, Search, X } from "lucide-react";
+import Link from "next/link";
+import {
+  CheckCircle2,
+  ChevronRight,
+  ExternalLink,
+  FileCode,
+  Search,
+  X,
+} from "lucide-react";
 
 import { CodeSnippet } from "@/components/report/code-snippet";
 import { AiActions } from "@/components/report/ai-actions";
@@ -483,6 +491,22 @@ function FindingRow({
             output rather than as the analyser's own attribution.
           */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
+            {/*
+              The whole point of the file viewer: until this link existed, a
+              finding gave you a coordinate you could not open.
+            */}
+            {finding.file && (
+              <Link
+                href={`/r/${encodeURIComponent(report.id)}/f/${finding.file
+                  .split("/")
+                  .map(encodeURIComponent)
+                  .join("/")}${finding.line ? `?line=${finding.line}` : ""}`}
+                className="inline-flex items-center gap-1 rounded text-accent transition-colors duration-(--duration-fast) hover:underline"
+              >
+                <FileCode className="size-3" aria-hidden />
+                Open file
+              </Link>
+            )}
             <span className="font-mono text-fg-subtle">{finding.rule_id}</span>
             {finding.references.map((reference) => (
               <a

@@ -55,6 +55,13 @@ that merely look different.
 The comparison is computed when the report is created and stored on it, so a
 shared report keeps saying what it said when you shared it.
 
+## Opening the file
+
+Every finding links to its line in a real file view, with the tree beside it and
+findings marked in the gutter. Repository source is re-fetched from GitHub
+pinned to the exact commit that was analysed, so line 47 is the line the rule
+saw; uploaded archives keep their source, because nothing can re-fetch it.
+
 ## Accepting findings
 
 Some findings are real and you are going to live with them anyway — a key in a
@@ -178,8 +185,8 @@ breaker settings are documented in
 ## Testing
 
 ```bash
-cd vantage-backend  && python -m pytest -q       # 217 tests
-cd vantage-frontend && npm run test              # 119 tests
+cd vantage-backend  && python -m pytest -q       # 244 tests
+cd vantage-frontend && npm run test              # 131 tests
                        npm run typecheck
                        npm run lint
                        npm run build

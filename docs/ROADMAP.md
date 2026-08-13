@@ -8,8 +8,8 @@ constrained way, not aspirational marketing.
 | Limitation | Detail | Fix |
 |---|---|---|
 | **Jobs are in-process** | An analysis job lives in the memory of the web process that started it. Correct for one instance; a second instance would not find the job. | Move the queue to Redis or Postgres `LISTEN/NOTIFY`. |
-| **Source is discarded after analysis** | Findings keep a ±3-line snippet, so *Propose fix* often has too little context and returns `INSUFFICIENT_CONTEXT` for whole-file findings. This is honest but limiting. | Persist the analysed blobs (or re-fetch the file on demand) so AI actions can request wider context. |
-| **No file browser** | Findings link to `file:line` as text; there is no tree or full-file viewer yet. The data is all there — every finding carries `file`, `line`, `snippet` and `snippet_start_line`. | Add `/r/[id]/f/[...path]` backed by stored blobs, with virtualised rendering. |
+| **AI actions still see only a snippet** | The file viewer can now read whole files, but `routers/ai.py` still builds its prompt from the finding's ±3-line snippet, so *Propose fix* returns `INSUFFICIENT_CONTEXT` on whole-file findings. The plumbing to fix this exists. | Have the AI router read through `SourceProvider` too. |
+| **A repository's source can disappear** | It is re-fetched from GitHub pinned to the analysed commit, so the viewer breaks if the repository is deleted, made private, or force-pushed. The chosen trade for not storing every repository's source. | The page says which of those happened; storing blobs for repositories too is the fix, at a storage cost. |
 | **Findings snippets are not highlighted** | Shiki is fully wired for AI and markdown output, but `components/report/code-snippet.tsx` still renders plain monospace with the offending line marked. | Reuse `lib/highlighter.ts` in the snippet component. |
 | **Some backend tests touch the network** | Two API tests start a real analysis in a background task, which reaches GitHub/OSV. They pass, but they make the suite slower and weather-dependent. | Inject a fake runner in those tests. |
 | **JS/TS-weighted rules** | Project detection is multi-language, but most correctness rules target JS/TS/React. Python and Go get structural and secret checks only. | Add per-ecosystem rule packs. |
@@ -21,9 +21,9 @@ constrained way, not aspirational marketing.
 
 ## Next features, in rough value order
 
-1. **File viewer with the finding gutter.** Turns "line 47" into "here is line
-   47 in context". Requires persisting blobs, which also fixes *Propose fix*
-   returning `INSUFFICIENT_CONTEXT` on whole-file findings.
+1. **Wider context for AI actions.** `SourceProvider` can read whole files now;
+   the AI router still builds prompts from the ±3-line snippet. Small change,
+   removes the `INSUFFICIENT_CONTEXT` answer.
 2. **Reachability for transitive advisories.** The difference between "your
    lockfile mentions a vulnerable package" and "your code can actually reach it"
    is most of the signal-to-noise problem in dependency scanning.
@@ -42,6 +42,9 @@ constrained way, not aspirational marketing.
 - **Re-run and compare.** Findings carry a rule-supplied `fingerprint`, and each
   report stores a `delta` against the previous analysis of the same repository.
   See "Finding identity" in the backend architecture document.
+- **File viewer.** `/r/[id]/f/[...path]` with a tree, per-file finding counts and
+  gutter markers. Repository source is re-fetched pinned to the analysed commit;
+  uploads store theirs. See "Reading source after the fact".
 - **Baselines.** Findings can be accepted, per repository, so a report stops
   reporting what someone has already decided to live with. The adjusted score is
   cached on the report row so History and the trend chart show the same number

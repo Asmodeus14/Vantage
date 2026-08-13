@@ -169,6 +169,30 @@ export interface RepositoryActivity {
   unavailable_reason: string | null;
 }
 
+export interface SourceFileEntry {
+  path: string;
+  size: number;
+  language: string | null;
+  analysable: boolean;
+  /** Findings anchored here, so the tree can show where the problems are. */
+  findings: number;
+}
+
+export interface SourceTree {
+  files: SourceFileEntry[];
+  truncated: boolean;
+}
+
+export interface SourceFile {
+  path: string;
+  language: string | null;
+  content: string;
+  lines: number;
+  /** Findings in this file, for the gutter. Delivered with the code so the
+   *  markers land on first paint rather than after a second round-trip. */
+  findings: Finding[];
+}
+
 /** A finding present in the previous report and gone from this one. */
 export interface ResolvedFinding {
   fingerprint: string;

@@ -24,6 +24,8 @@ export interface SeverityMeta {
   chip: string;
   /** Foreground-only, for icons and inline text. */
   text: string;
+  /** Background only, for marking a whole row such as a line of source. */
+  rowBg: string;
   /** Sort weight: lower is more urgent. */
   rank: number;
 }
@@ -34,6 +36,7 @@ export const SEVERITY_META: Record<Severity, SeverityMeta> = {
     icon: OctagonAlert,
     chip: "bg-critical-bg text-critical border-critical-border",
     text: "text-critical",
+    rowBg: "bg-critical-bg",
     rank: 0,
   },
   high: {
@@ -41,6 +44,7 @@ export const SEVERITY_META: Record<Severity, SeverityMeta> = {
     icon: ShieldAlert,
     chip: "bg-high-bg text-high border-high-border",
     text: "text-high",
+    rowBg: "bg-high-bg",
     rank: 1,
   },
   medium: {
@@ -48,6 +52,7 @@ export const SEVERITY_META: Record<Severity, SeverityMeta> = {
     icon: AlertTriangle,
     chip: "bg-medium-bg text-medium border-medium-border",
     text: "text-medium",
+    rowBg: "bg-medium-bg",
     rank: 2,
   },
   low: {
@@ -55,6 +60,7 @@ export const SEVERITY_META: Record<Severity, SeverityMeta> = {
     icon: FileWarning,
     chip: "bg-low-bg text-low border-low-border",
     text: "text-low",
+    rowBg: "bg-low-bg",
     rank: 3,
   },
   info: {
@@ -62,6 +68,7 @@ export const SEVERITY_META: Record<Severity, SeverityMeta> = {
     icon: Info,
     chip: "bg-info-bg text-info border-info-border",
     text: "text-info",
+    rowBg: "bg-info-bg",
     rank: 4,
   },
 };

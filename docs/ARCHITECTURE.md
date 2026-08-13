@@ -211,6 +211,33 @@ The caveat about rules added between runs is shown only when such a rule
 actually produced a new finding. A caveat displayed when it does not apply
 teaches people to skip it for the times it does.
 
+### The file viewer
+
+`/r/[id]/f/[...path]` is what turns a finding's `file:line` from a coordinate
+into a place. Three decisions worth recording:
+
+- **Tree and file are fetched in parallel, and settled independently.** For a
+  repository each is a separate GitHub round-trip, so waterfalling them doubles
+  the wait; `Promise.allSettled` means a tree that fails does not blank the file
+  someone actually asked for, and vice versa.
+- **The tree is built in the browser from a flat list.** The API returns flat
+  paths because that is what both source providers produce cheaply — a tree is a
+  rendering concern. Folders containing findings start open, and finding counts
+  bubble up, so a collapsed folder still says how much is inside.
+- **Findings arrive with the file**, not from a second request, so the gutter is
+  marked on first paint rather than a moment later. They are also listed under
+  the code: a gutter mark says *where* but cannot say what is wrong, and a
+  tooltip would be unreachable by keyboard and invisible on touch.
+
+Not virtualised. Files are capped at 1MB by the API and the common case is a few
+hundred lines; `@tanstack/react-virtual` is installed for when a real file
+proves that wrong, and adding it first would mean carrying a windowed scroller
+with nothing to show for it.
+
+When source cannot be read the page shows the API's reason verbatim — the
+repository went private, the commit was force-pushed, the upload predates blob
+storage — because each has a different remedy and "unavailable" has none.
+
 ### Accepted findings
 
 `suppress-action.tsx` renders only when `report.can_suppress` — the one field
