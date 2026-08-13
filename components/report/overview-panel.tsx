@@ -347,8 +347,8 @@ function TrendPanelAsync({
 function TrendSkeleton() {
   return (
     <section aria-hidden>
-      <div className="mb-3 h-4 w-24 animate-pulse rounded bg-surface-raised" />
-      <div className="h-[200px] animate-pulse rounded-md bg-surface-raised" />
+      <div className="mb-3 h-4 w-24 animate-skeleton rounded bg-surface-raised" />
+      <div className="h-[200px] animate-skeleton rounded-md bg-surface-raised" />
     </section>
   );
 }

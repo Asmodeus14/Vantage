@@ -205,7 +205,7 @@ function Thinking({ action }: { action: ActionId }) {
         {[0, 1, 2].map((index) => (
           <span
             key={index}
-            className="size-1 animate-pulse rounded-full bg-fg-subtle"
+            className="size-1 animate-skeleton rounded-full bg-fg-subtle"
             style={{ animationDelay: `${index * 160}ms`, animationDuration: "1.1s" }}
           />
         ))}

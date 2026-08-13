@@ -349,3 +349,31 @@
     scroll-behavior: auto !important;
   }
 }
+
+/*
+  Skeletons pulse to say "loading", then settle.
+
+  `animate-skeleton` runs forever. A filmstrip cannot reach visual completeness
+  while any region keeps changing, so an infinite animation on a loading state
+  inflates Speed Index without anything actually being slow — measured here as
+  20.8s against an LCP of 3.9s.
+
+  Four cycles is enough to read as "working" and stops before it becomes a
+  metronome. Anything still skeletal after eight seconds has a real problem, and
+  a pulse is not the thing that fixes it.
+*/
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-skeleton {
+  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-skeleton {
+    animation: none;
+  }
+}
