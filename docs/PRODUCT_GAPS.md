@@ -10,6 +10,22 @@ measured problem or a stated consequence of the free-tier constraint.
 
 ## Closed
 
+### Rules reported things that were not true — *fixed*
+
+Validating each rule family against real repositories rather than fixtures
+found three defects, roughly sixty false findings between them: the secret
+detector treating any expression assigned to a credential-shaped name as a
+credential, `react/missing-list-key` reading six lines past the callback,
+and `quality/deep-nesting` counting JSX braces as control flow.
+
+Two narrower ones followed: `quality/long-function` counted markup towards a
+threshold whose rationale is about branching (24 findings to 3), and
+`config/no-linter` was gated to Node, so a Python project with no linter was
+never told (this API's own repository).
+
+Every failure was a heuristic reading nearby text instead of the construct it
+claimed to measure. All passed unit tests with tidy fixtures.
+
 ### Stored source grew without bound — *fixed*
 
 Nothing pruned `source_blobs`, and an upload keeps up to 8 MB gzipped, so a few
@@ -65,33 +81,7 @@ runs for SQLite. This would also unlock testing `PostgresReportStore` and
 in-memory twins — the exact gap that let the `bindparam` bug reach live
 Postgres during this audit.
 
-### 2. `quality/long-function` does not distinguish a component from a function
-
-It reports 24 React components on a real frontend. They *are* long — the
-measurement is correct — but most of those lines are JSX, so the finding's own
-rationale ("many branches, hard to cover with tests") does not apply to them.
-
-A true measurement with a wrong explanation still costs the reader's trust.
-
-**Fix:** either a separate threshold for components whose body is mostly
-markup, or a rationale that says what long components actually cost. This is a
-rule-design decision rather than a bug, which is why it was not guessed at.
-
-### 3. Python projects are never told they lack a linter
-
-`config/no-linter` is gated on `is_node`, so it checks for ESLint or Biome and
-nothing else. Validated against this API's own repository: it has **no** linter
-configured — no ruff, no flake8 — and Vantage correctly said nothing, because
-the rule does not apply to Python at all.
-
-That gating was right when the engine was JS-only. With a Python rule pack it is
-now a blind spot: the check exists, the ecosystem is supported, and the two are
-not connected.
-
-**Fix:** extend the rule to look for `ruff`/`flake8`/`black` configuration in
-`pyproject.toml`, `setup.cfg` or `.ruff.toml` when the project is Python.
-
-### 4. Gemini usage is unmeasured
+### 2. Gemini usage is unmeasured
 
 Context is bounded and prompts are server-assembled, so cost is structurally
 controlled — but nothing records what a call actually costs. "Token efficient"
@@ -101,7 +91,7 @@ is an argument, not a measurement.
 metrics platform, no new dependency; enough to see whether the 160-line window
 is the right size.
 
-### 5. Range-declared Python projects are not scanned
+### 3. Range-declared Python projects are not scanned
 
 An exact version is required to query OSV. Python reads `poetry.lock` and `==`
 pins. A project declaring only `fastapi>=0.115` gets its dependencies listed but
@@ -109,7 +99,7 @@ no advisories. Measured on the API's own repository: 18 collected, 0 resolvable.
 
 **Fix:** parse `Pipfile.lock` and `uv.lock`, and `pip freeze`-style requirements.
 
-### 6. Sign-in is unverified in Safari and Firefox strict mode
+### 4. Sign-in is unverified in Safari and Firefox strict mode
 
 The consent step needs a human. This is the one failure mode that passes every
 Chrome test, because the first-party cookie design exists specifically to
