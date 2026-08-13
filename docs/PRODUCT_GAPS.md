@@ -8,28 +8,33 @@ measured problem or a stated consequence of the free-tier constraint.
 
 ---
 
+## Closed
+
+### Anonymous callers could reach private repositories — *fixed*
+
+`_credentials_for` fell back to the server's GitHub token for anonymous callers
+and nothing checked repository visibility, so the token's scope was the only
+boundary between a visitor and someone's private code — which the file viewer
+serves whole files of.
+
+Now guarded in two places. **Ingestion** refuses a private repository unless the
+credentials came from a signed-in user, at no extra cost: `fetch_repository`
+already reads the metadata for its size check and `private` is in the same
+response. **Reading** refuses too, from a `private` flag recorded on
+`SourceInfo` at analysis time rather than a fresh API call — a guard that needed
+the network would fail open exactly when the rate limit is exhausted.
+
+The second half covers what the first cannot: a signed-in user analysing their
+own private repository and sharing the link. The report stays readable; its
+source does not.
+
+---
+
 ## Critical
 
 Fix before running this for other people.
 
-### 1. No public-repository guard on the server token
-
-`_credentials_for` (`analyze.py:82`) falls back to the server's GitHub token
-whenever nobody is signed in, and **nothing checks repository visibility**. With
-a correctly scoped token this is safe. With a classic `repo` PAT, any anonymous
-visitor could analyse a private repository and then read its files through the
-file viewer, which serves whole files.
-
-Right now the token's scope is the only boundary. It should not be.
-
-**Fix:** before analysing with *server* credentials, read the repository's
-`private` flag and refuse when the caller is anonymous. Roughly 20 lines in
-`ingest/github.py` plus a test. It costs one extra API call on a path that
-already makes several, and it means a mis-scoped token cannot leak anything —
-which is what makes it safe to say in `SECURITY.md` that a public instance
-cannot read private code.
-
-### 2. No data retention
+### 1. No data retention
 
 Nothing prunes `reports` or `source_blobs`. Measured: reports are ~10 kB each,
 so growth is slow; an upload stores up to 8 MB gzipped, so a few hundred uploads
@@ -57,7 +62,7 @@ Step 1 alone removes the growth risk, because reports are the slow part.
 
 Materially improves quality; not blocking.
 
-### 3. The expired-session sweep is untested
+### 2. The expired-session sweep is untested
 
 The sweep added in this pass has no test, because the suite runs without a
 database — deliberately, so results do not depend on whose machine it runs on.
@@ -69,7 +74,7 @@ runs for SQLite. This would also unlock testing `PostgresReportStore` and
 in-memory twins — the exact gap that let the `bindparam` bug reach live
 Postgres during this audit.
 
-### 4. Gemini usage is unmeasured
+### 3. Gemini usage is unmeasured
 
 Context is bounded and prompts are server-assembled, so cost is structurally
 controlled — but nothing records what a call actually costs. "Token efficient"
@@ -79,7 +84,7 @@ is an argument, not a measurement.
 metrics platform, no new dependency; enough to see whether the 160-line window
 is the right size.
 
-### 5. Range-declared Python projects are not scanned
+### 4. Range-declared Python projects are not scanned
 
 An exact version is required to query OSV. Python reads `poetry.lock` and `==`
 pins. A project declaring only `fastapi>=0.115` gets its dependencies listed but
@@ -87,7 +92,7 @@ no advisories. Measured on the API's own repository: 18 collected, 0 resolvable.
 
 **Fix:** parse `Pipfile.lock` and `uv.lock`, and `pip freeze`-style requirements.
 
-### 6. Sign-in is unverified in Safari and Firefox strict mode
+### 5. Sign-in is unverified in Safari and Firefox strict mode
 
 The consent step needs a human. This is the one failure mode that passes every
 Chrome test, because the first-party cookie design exists specifically to

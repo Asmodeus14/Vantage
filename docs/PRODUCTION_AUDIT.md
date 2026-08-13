@@ -18,7 +18,7 @@ from a single session would be theatre.
 retrofitted: archive containment covers ZIP and tar under one policy, model
 input is fenced and output validated, the AI endpoint takes a closed enum with
 no free-text parameter, secrets are redacted before storage, GitHub tokens are
-encrypted at rest and sessions stored as hashes. Test coverage is real — 303
+encrypted at rest and sessions stored as hashes. Test coverage is real — 307
 backend and 131 frontend tests, run in CI, covering the authorisation matrix and
 the containment paths specifically. Degradation is honest throughout: every
 absent dependency is reported rather than hidden.
@@ -29,14 +29,13 @@ process-local while Render runs two workers, so the effective limit is roughly
 double what is configured. Some of the free-tier behaviour is documented in
 prose that a deployer will not read at the moment they need it.
 
-**Dangerous.** One item, and it is configuration rather than code: the server
-GitHub token has no scope guard. `_credentials_for` falls back to it for
-anonymous callers and nothing checks repository visibility, so a token with
-private access would let any visitor read private code through the file viewer.
-Fixed by scoping the token — but the code should not be relying on that alone.
+**Dangerous.** One item, now closed. The server GitHub token had no scope
+guard: `_credentials_for` falls back to it for anonymous callers and nothing
+checked repository visibility, so a token with private access would have let any
+visitor read private code through the file viewer. Scoping the token was the
+first fix; the code no longer depends on that having been done.
 
-**Missing.** Data retention, a public-repository guard, and any measurement of
-Gemini token usage.
+**Missing.** Data retention, and any measurement of Gemini token usage.
 
 **Maturity.** Beyond a portfolio project; short of something to run for other
 people unattended. The gap is operational, not architectural.
@@ -54,13 +53,13 @@ Measured, not impressionistic. `Before` is the state at the start of this pass.
 | Backend — architecture, API design | 8 | 8 | Unchanged |
 | Database — schema, indexes, queries | 6 | 7 | N+1 on suppression fixed; retention still absent |
 | AI integration | 7 | 7 | Correct and bounded; token usage still unmeasured |
-| Security | 8 | 8 | No code change; the open item is deployment config |
+| Security | 8 | 9 | Private repositories guarded in code, not only by token scope |
 | Performance | 7 | 8 | One round-trip instead of N on every suppression |
 | Reliability | 6 | 7 | Session table no longer grows unbounded |
-| Testing | 8 | 8 | +1 test; the session sweep is untested (see gaps) |
+| Testing | 8 | 8 | +5 tests; the session sweep is untested (see gaps) |
 | Documentation | 8 | 9 | Free-tier architecture documented with measurements |
 | Free-tier efficiency | 6 | 7 | Fewer round-trips, bounded session growth |
-| **Overall** | **7** | **7.5** | |
+| **Overall** | **7** | **8** | |
 
 Not 10 anywhere, and deliberately so. A 10 would mean retention, distributed
 rate limiting and measured AI cost — none of which is true.
@@ -136,9 +135,21 @@ The sweep now runs inside `create_session`, in the same transaction: the one
 moment the table is known to be growing, and the only place available given
 there is no scheduler on a free tier and the process sleeps when idle.
 
+**3. Anonymous callers could reach private repositories** — *security, fixed*
+
+`_credentials_for` fell back to the server token for anonymous callers and
+nothing checked repository visibility. With a mis-scoped token, any visitor
+could analyse private code and then read whole files through the viewer.
+
+Guarded at both ends: analysis refuses a private repository without user
+credentials, and reading refuses from a flag recorded at analysis time rather
+than a fresh API call — because a guard needing the network fails open exactly
+when the rate limit is exhausted. Four tests, including one asserting an
+ordinary public report is untouched.
+
 ### Found, not fixed — with reasons
 
-**3. Nothing is ever pruned** — *the main free-tier risk*
+**4. Nothing is ever pruned** — *the main free-tier risk*
 
 No retention on `reports` or `source_blobs`. Reports are ~10 kB each, so growth
 is slow. `source_blobs` is the real exposure: an upload stores up to 8 MB
@@ -147,22 +158,12 @@ gzipped, so a few hundred uploads would approach Neon's free storage.
 Not fixed because automatically deleting user data is a product decision, not a
 technical one. See `PRODUCT_GAPS.md` for the concrete proposal.
 
-**4. Rate limiting is process-local while Render runs two workers**
+**5. Rate limiting is process-local while Render runs two workers**
 
 `slowapi` keeps counters in memory. Two workers means roughly double the
 configured limit, and a restart resets it. Genuinely unfixable within the
 constraint — the alternatives all need shared state. Documented rather than
 papered over, in `FREE_TIER_ARCHITECTURE.md`.
-
-**5. Server GitHub token has no scope guard** — *security*
-
-`_credentials_for` (`analyze.py:82`) falls back to the server token for
-anonymous callers, and nothing checks whether the target repository is private.
-With a correctly scoped token this is safe; with a classic `repo` PAT any
-visitor could read private code through the file viewer.
-
-Proposed fix — refuse private repositories when the caller is anonymous — is in
-`PRODUCT_GAPS.md` as the top critical item.
 
 **6. Gemini token usage is unmeasured**
 
