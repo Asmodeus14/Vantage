@@ -23,6 +23,8 @@ function summary(overrides: Partial<ReportSummary> & { id: string }): ReportSumm
       filename: null,
     },
     score: 70,
+    effective_score: null,
+    suppressed_count: 0,
     grade: "C",
     severity_counts: { critical: 0, high: 1, medium: 2, low: 3, info: 0 },
     total_findings: 6,
@@ -92,6 +94,20 @@ describe("TrendPanel — charted", () => {
     const cells = screen.getAllByRole("cell").map((cell) => cell.textContent);
     // The older score must appear before the newer one in the data table.
     expect(cells.indexOf("68")).toBeLessThan(cells.indexOf("74"));
+  });
+
+  it("plots the score with accepted findings excluded", () => {
+    // The report page shows the adjusted score. A trend chart plotting the
+    // unadjusted one meant the same report read as two different numbers
+    // depending on where you looked at it.
+    const history = runs(74, 71, 68);
+    history[0]!.effective_score = 90;
+    history[0]!.suppressed_count = 4;
+
+    render(<TrendPanel history={history} currentId="r3" repository="a/b" />);
+
+    expect(screen.getByRole("img", { name: /68 to 90/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("cell").map((c) => c.textContent)).toContain("90");
   });
 
   it("switches to severity series on request", async () => {

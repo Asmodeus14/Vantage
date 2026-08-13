@@ -19,6 +19,7 @@ import {
 import { Kbd } from "@/components/ui/input";
 import { cn, repoShortName } from "@/lib/utils";
 import type { ReportSummary } from "@/lib/types";
+import { displayScore } from "@/lib/severity";
 
 /** Shared open/close state so the header trigger and the ⌘K binding agree. */
 const PaletteContext = React.createContext<{
@@ -194,7 +195,7 @@ function CommandPalette() {
                           report.source.filename ||
                           report.id
                         }
-                        hint={`${report.score}/100 · ${report.total_findings} findings`}
+                        hint={`${displayScore(report)}/100 · ${report.total_findings} findings`}
                         onSelect={() => run(() => router.push(`/r/${report.id}`))}
                       />
                     ))}

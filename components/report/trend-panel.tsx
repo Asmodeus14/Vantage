@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 
 import { LineChart, type LineSeries } from "@/components/charts/line-chart";
-import { SEVERITY_META } from "@/lib/severity";
+import { SEVERITY_META, displayScore } from "@/lib/severity";
 import { cn, pluralise } from "@/lib/utils";
 import type { ReportSummary, Severity } from "@/lib/types";
 
@@ -36,7 +36,8 @@ export function TrendPanel({
 
   const first = ordered[0];
   const last = ordered[ordered.length - 1];
-  const delta = first && last ? last.score - first.score : 0;
+  const delta =
+    first && last ? displayScore(last) - displayScore(first) : 0;
 
   if (ordered.length < 2) {
     // One line, not a card. There is nothing to show yet, and drawing a
@@ -62,7 +63,8 @@ export function TrendPanel({
         <p className="flex flex-wrap items-baseline gap-x-2 text-xs text-fg-subtle">
           <span className="font-medium text-fg">Trend</span>
           <span>
-            {first?.score} → <span className="text-fg">{last?.score}</span> across
+            {first && displayScore(first)} →{" "}
+            <span className="text-fg">{last && displayScore(last)}</span> across
             two analyses
           </span>
           <Delta delta={delta} />
@@ -86,7 +88,7 @@ export function TrendPanel({
             id: "score",
             label: "Score",
             colour: "var(--series-1)",
-            values: ordered.map((report) => report.score),
+            values: ordered.map(displayScore),
           },
         ]
       : PLOTTED.map((severity) => ({
@@ -100,7 +102,7 @@ export function TrendPanel({
 
   const caption =
     metric === "score"
-      ? `Score moved from ${first?.score} to ${last?.score} across ${ordered.length} analyses of ${repository}.`
+      ? `Score moved from ${first && displayScore(first)} to ${last && displayScore(last)} across ${ordered.length} analyses of ${repository}.`
       : `Finding counts by severity across ${ordered.length} analyses of ${repository}.`;
 
   return (
@@ -166,7 +168,7 @@ export function TrendPanel({
                 })}
               </div>
               <div className="tabular font-medium text-fg">
-                {report.score} · {report.grade}
+                {displayScore(report)} · {report.grade}
                 {report.id === currentId && (
                   <span className="ml-1 font-normal text-fg-subtle">this report</span>
                 )}

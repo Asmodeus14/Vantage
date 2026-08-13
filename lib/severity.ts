@@ -112,6 +112,22 @@ export function scoreColour(value: number): string {
   return "text-critical";
 }
 
+/**
+ * The score to show for a listed report: adjusted for accepted findings when
+ * any are, otherwise as analysed.
+ *
+ * Exists so History, the trend chart, the command palette and the report page
+ * cannot answer "what did this score" differently. They did — the report page
+ * excluded accepted findings and every list did not, so one report showed two
+ * numbers depending on where you looked at it.
+ */
+export function displayScore(report: {
+  score: number;
+  effective_score?: number | null;
+}): number {
+  return report.effective_score ?? report.score;
+}
+
 export function compareSeverity(a: Severity, b: Severity): number {
   return SEVERITY_META[a].rank - SEVERITY_META[b].rank;
 }

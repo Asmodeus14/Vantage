@@ -3,7 +3,7 @@ import { FileArchive, Github } from "lucide-react";
 
 import { LinkPending } from "@/components/link-pending";
 import { SeverityBadge } from "@/components/ui/badge";
-import { scoreColour } from "@/lib/severity";
+import { displayScore, scoreColour } from "@/lib/severity";
 import { cn, formatRelativeTime, pluralise } from "@/lib/utils";
 import type { ReportSummary, Severity } from "@/lib/types";
 
@@ -92,8 +92,13 @@ export function ReportListItem({
         {/* Replaces the score while the next page is being fetched, so the
             click is acknowledged at the point it happened. */}
         <LinkPending />
-        <span className={cn("tabular text-base font-semibold", scoreColour(report.score))}>
-          {report.score}
+        <span
+          className={cn(
+            "tabular text-base font-semibold",
+            scoreColour(displayScore(report)),
+          )}
+        >
+          {displayScore(report)}
         </span>
         <span className="text-xs text-fg-subtle">{report.grade}</span>
       </div>

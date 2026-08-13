@@ -4,7 +4,7 @@ import { Github } from "lucide-react";
 import { Sparkline } from "@/components/charts/sparkline";
 import { ReportListItem } from "@/components/report-list-item";
 
-import { scoreColour } from "@/lib/severity";
+import { displayScore, scoreColour } from "@/lib/severity";
 import { cn, pluralise } from "@/lib/utils";
 import type { ReportSummary } from "@/lib/types";
 
@@ -24,12 +24,14 @@ export function RepositoryGroup({
   repository: string;
 }) {
   // Oldest first for the sparkline; time reads left to right.
-  const scores = [...reports].reverse().map((report) => report.score);
+  const scores = [...reports].reverse().map(displayScore);
   const latest = reports[0];
   const oldest = reports[reports.length - 1];
   if (!latest || !oldest) return null;
 
-  const delta = latest.score - oldest.score;
+  const latestScore = displayScore(latest);
+  const oldestScore = displayScore(oldest);
+  const delta = latestScore - oldestScore;
 
   return (
     // A section, not a card. Every other surface in the app dropped its
@@ -56,8 +58,8 @@ export function RepositoryGroup({
             values={scores}
             label={
               delta === 0
-                ? `Score unchanged at ${latest.score} across ${reports.length} runs`
-                : `Score ${delta > 0 ? "rose" : "fell"} from ${oldest.score} to ${latest.score}`
+                ? `Score unchanged at ${latestScore} across ${reports.length} runs`
+                : `Score ${delta > 0 ? "rose" : "fell"} from ${oldestScore} to ${latestScore}`
             }
             // Neutral when nothing moved. Green on a flat line reads as
             // "improving", which is the one thing it is not.
@@ -71,9 +73,9 @@ export function RepositoryGroup({
           />
           <div className="flex w-14 items-baseline justify-end gap-1">
             <span
-              className={cn("tabular text-base font-semibold", scoreColour(latest.score))}
+              className={cn("tabular text-base font-semibold", scoreColour(latestScore))}
             >
-              {latest.score}
+              {latestScore}
             </span>
             <span className="text-xs text-fg-subtle">{latest.grade}</span>
           </div>

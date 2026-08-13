@@ -18,7 +18,6 @@ constrained way, not aspirational marketing.
 | **Some findings still churn between runs** | Rules emitting several findings per file with nothing to tell them apart — `react/array-index-key`, `react/missing-list-key` — key on `line`, so inserting code above one reads as resolved-plus-new. Renaming a file has the same effect for every rule. | Accepted, not fixed: there is no natural discriminator, and rename detection is a larger change. |
 | **A signed-in user's ZIP upload is attributed anonymously** | The upload posts directly to the API to clear the serverless body cap, so it cannot carry the session cookie. | A single-use upload ticket issued by the frontend. |
 | **Sign-in is untested against real GitHub** | The consent step needs a human. The third-party-cookie failure mode passes every Chrome test. | Verify in Safari and Firefox strict mode. |
-| **History shows unadjusted scores** | A report page shows the score with accepted findings excluded; the History list and trend chart show it as analysed, because summaries are built from indexed columns and never deserialise the payload. The same report can therefore show two numbers in two places. | Persist the effective score, recomputing across a repository's reports when a suppression changes. |
 
 ## Next features, in rough value order
 
@@ -44,8 +43,9 @@ constrained way, not aspirational marketing.
   report stores a `delta` against the previous analysis of the same repository.
   See "Finding identity" in the backend architecture document.
 - **Baselines.** Findings can be accepted, per repository, so a report stops
-  reporting what someone has already decided to live with. See "Accepted
-  findings".
+  reporting what someone has already decided to live with. The adjusted score is
+  cached on the report row so History and the trend chart show the same number
+  as the report they link to. See "Accepted findings".
 
 ## Deliberately not planned
 

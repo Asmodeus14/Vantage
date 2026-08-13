@@ -130,7 +130,11 @@ export interface ReportSummary {
   id: string;
   created_at: string;
   source: SourceInfo;
+  /** As analysed. Use `displayScore()` unless you specifically want this one. */
   score: number;
+  /** `score` with accepted findings excluded, or null when none are. */
+  effective_score: number | null;
+  suppressed_count: number;
   grade: Grade;
   severity_counts: SeverityCounts;
   total_findings: number;
