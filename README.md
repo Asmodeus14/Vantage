@@ -1,123 +1,217 @@
-# Vantage
+<div align="center">
 
-**Point it at a repository and it tells you what is wrong, exactly where.**
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/mark-light.png">
+  <img src="public/mark.png" alt="Vantage" width="76">
+</picture>
 
-Paste a GitHub URL. Vantage fetches the source, runs a rule engine over it, and
-returns a scored report where every finding is anchored to a file and line with
-the offending code shown beside it — known vulnerabilities from real advisory
-data, committed credentials, correctness bugs, and structural problems.
+<h1>Vantage</h1>
 
-> **This is the web client.** The rule engine, the API and the database live in
+**Point it at a repository and it tells you what is wrong, exactly where —
+then whether it is getting better.**
+
+[![CI](https://github.com/Asmodeus14/vantage-frontend/actions/workflows/ci.yml/badge.svg)](https://github.com/Asmodeus14/vantage-frontend/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+[API repository](https://github.com/Asmodeus14/vantage-backend) ·
+[Architecture](docs/ARCHITECTURE.md) ·
+[Roadmap](docs/ROADMAP.md)
+
+<!-- Add the deployed URL here once you are happy to share it, e.g.
+     [Live demo](https://your-app.vercel.app)  -->
+
+</div>
+
+---
+
+Most static analysers hand you a list of problems, then hand you the same list
+next week — because they have no memory. A finding that moved down three lines
+reads as a new finding; one you already decided to live with comes back every
+run. People stop reading the list, which is the moment the tool stops working.
+
+Vantage gives findings an identity that survives an edit. Analyse a repository
+twice and the second report says what actually changed: what you fixed, what
+appeared, what you had already accepted. Every finding links to its line in a
+real file view, and with an API key configured you can ask a model to explain it
+or propose a patch — scoped to that one finding, returned as a diff you review.
+
+> **This repository is the web client.** The rule engine, the API and the
+> database live in
 > [`vantage-backend`](https://github.com/Asmodeus14/vantage-backend). You need
-> both running to use Vantage; see [Running it locally](#running-it-locally).
+> both to run Vantage — see [Getting started](#getting-started).
 
+## Screenshots
+
+> **Not yet captured.** The screens worth documenting, in order of value:
+>
+> | File to add | Screen |
+> |---|---|
+> | `docs/screenshots/analyse.png` | Home — repository URL, ZIP drop zone, repo picker |
+> | `docs/screenshots/report-overview.png` | Report Overview — score, severity counts, "since last analysis" |
+> | `docs/screenshots/findings.png` | Findings list with one expanded, showing the code snippet |
+> | `docs/screenshots/ai-action.png` | *Propose fix* returning a reviewed diff |
+> | `docs/screenshots/file-viewer.png` | File viewer — tree, gutter markers, findings under the code |
+> | `docs/screenshots/activity.png` | Activity — commit chart and churn table |
+>
+> Drop them in `docs/screenshots/` and replace this block with the images.
+
+## Features
+
+### Finding what is wrong
+
+- **Known vulnerabilities** from OSV.dev with real CVE/GHSA identifiers, for npm
+  and PyPI, direct and transitive.
+- **Committed credentials** — provider-shaped tokens and entropy-checked
+  assignments, with the value redacted everywhere it appears.
+- **Correctness bugs** in React and Python, and structural problems (long files,
+  long functions, deep nesting) measured with comments and string literals
+  stripped out.
+- **Confidence on every finding.** A heuristic match says so instead of
+  presenting a guess as a certainty.
+
+### Knowing whether it improved
+
+- **Re-run and compare.** The second report on a repository reports what was
+  resolved and what is new, using a fingerprint that survives a dependency
+  version bump, a changed line count, or code inserted above.
+- **Accept what you are living with.** Mark a finding *Not an issue* with a
+  reason and it stops appearing on future runs of that repository — reversibly,
+  and never silently: the count stays on screen with a toggle to reveal it.
+- **Trend and churn.** Score over time, and which files both change often and
+  carry findings.
+
+### Working with the result
+
+- **Open the file.** Every located finding links to its line in a full file
+  view, with a tree beside it and findings marked in the gutter.
+- **Ask a model about one finding.** Explain, propose a fix, or generate a test.
+  Fixes come back as diffs you review; Vantage never writes to your working
+  tree.
+- **Shareable reports.** A report has its own URL and survives a refresh.
+- **Keyboard-first.** Command palette, filter focus, and next/previous finding.
+
+### Running it
+
+- **Works with no configuration.** No API key and no database required; each
+  absence is reported rather than hidden.
+- **Sign in with GitHub, optionally.** Reports become yours, analyses spend your
+  own GitHub rate limit rather than a shared one, and private repositories
+  become analysable if you separately grant it.
+
+## How it works
+
+```mermaid
+flowchart LR
+  U[Repository URL<br/>or ZIP upload] --> F[Vantage web client]
+  F --> A[Vantage API]
+  A --> R[Rule engine]
+  R --> O[(OSV.dev<br/>advisories)]
+  R --> S[Scored report]
+  S --> D[(Postgres)]
+  S --> F
+  F -.->|one finding at a time| G[Gemini]
+  G -.->|explanation or diff| F
 ```
-┌───────────────┐   repo URL / ZIP    ┌──────────────────┐   version query   ┌──────────┐
-│  Next.js 15   │ ──────────────────▶ │   FastAPI        │ ────────────────▶ │ OSV.dev  │
-│  App Router   │ ◀── SSE progress ── │   rule engine    │                   └──────────┘
-│  TypeScript   │                     │                  │   finding + code  ┌──────────┐
-└───────────────┘ ◀── report JSON ─── └──────────────────┘ ────────────────▶ │  Gemini  │
-   this repo                                  │                              └──────────┘
-                                              ▼
-                                        ┌──────────┐
-                                        │ Postgres │
-                                        └──────────┘
+
+Analysis is a job, not a request: the client starts it and then watches genuine
+per-stage progress over Server-Sent Events while the API fetches, extracts,
+indexes and runs each rule.
+
+## Architecture
+
+Two deployable units in two repositories, released independently.
+
+```mermaid
+flowchart TB
+  subgraph browser [Browser]
+    UI[React 19 UI]
+  end
+
+  subgraph vercel [vantage-frontend · Vercel]
+    RSC[Server Components]
+    RH[Route handlers<br/>session-aware proxy]
+    OA[OAuth callback]
+  end
+
+  subgraph render [vantage-backend · Render]
+    API[FastAPI]
+    RULES[Rule engine]
+  end
+
+  DB[(Neon Postgres)]
+  GH[GitHub API]
+  GEM[Gemini]
+
+  UI --> RSC
+  UI --> RH
+  UI -->|SSE progress · ZIP upload| API
+  RSC --> API
+  RH --> API
+  OA --> GH
+  API --> RULES
+  API --> DB
+  API --> GH
+  API --> GEM
 ```
 
----
+**Most traffic is proxied** through this server's route handlers, which keeps
+the API origin private and lets each call carry the session. Two paths
+deliberately go direct to the API: the **SSE progress stream**, because
+serverless platforms buffer streaming responses, and the **ZIP upload**, because
+they cap request bodies at a few megabytes.
 
-## What it finds
+**The OAuth exchange happens here, not on the API.** That keeps the client
+secret off the API entirely, and makes the session cookie first-party — a cookie
+set by the API would be third-party in production and blocked outright by Safari
+and by Firefox in strict mode. The API never sets a cookie; this server reads
+its own and forwards the session as a bearer token.
 
-| Area | Checks |
-|---|---|
-| **Dependencies** | Known vulnerabilities via **OSV.dev** with real CVE/GHSA ids, direct and transitive. React/react-dom major mismatch. Missing lockfile. |
-| **Secrets** | Provider-shaped tokens (AWS, GitHub, Stripe, Slack, private keys, JWTs, DB URLs) plus entropy-checked assignments. `.env` not gitignored. Values are redacted everywhere they appear. |
-| **React** | `.map()` without a `key`, array-index keys, `dangerouslySetInnerHTML`. |
-| **Python** | Mutable default arguments, bare `except:`, `shell=True`, unsafe deserialisation. |
-| **Structure** | Long files, long functions, deep nesting, TODO density — measured with comments and string literals stripped. |
-| **Configuration** | Linter, tests, CI, TypeScript `strict`, README. |
+**The AI call is scoped to a single finding.** The client sends a report id, a
+finding id, and one value from a closed set. There is no free-text parameter, so
+the endpoint cannot be repurposed as a general model proxy, and analysed source
+reaches the model fenced and marked untrusted.
 
-Every finding carries a **confidence** level, and rules are gated on the
-detected stack — a Python project is never told it is missing ESLint. The full
-rule list and the reasoning behind each one is in the
-[backend README](https://github.com/Asmodeus14/vantage-backend#readme).
+Fuller reasoning: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the browser
+side, [backend architecture](https://github.com/Asmodeus14/vantage-backend/blob/master/docs/ARCHITECTURE.md)
+for the rule engine, finding identity and persistence.
 
-**Dependency scanning needs an exact version.** npm reads the lockfile; Python
-reads `poetry.lock` or `==` pins. A project declaring only ranges
-(`fastapi>=0.115`) has its dependencies listed but not scanned, because a range
-cannot be resolved without the index and guessing would report advisories for
-versions nobody installed.
+## Tech stack
 
-## What it does with them
+| Layer | Technology | Purpose |
+|---|---|---|
+| Framework | Next.js 15 (App Router), React 19 | Server Components for the report pages; route handlers as a session-aware proxy |
+| Language | TypeScript 5.7 | `strict` plus `noUncheckedIndexedAccess`; `lib/types.ts` mirrors the API's schemas |
+| Styling | Tailwind CSS v4 | Semantic tokens in `app/globals.css`, exposed via `@theme inline` |
+| Components | Radix UI, `cmdk`, `lucide-react` | Accessible primitives, command palette, icons |
+| Theming | `next-themes` | Light and dark, following the system by default |
+| Markdown | `react-markdown`, `remark-gfm`, `rehype-sanitize` | Renders model output; raw HTML is never parsed |
+| Highlighting | Shiki | Lazy-loaded, dual-theme code blocks |
+| Charts | — | Hand-rolled SVG in `lib/scale.ts` and `components/charts/` |
+| Testing | Vitest, Testing Library | 131 tests, run in CI on every push |
+| API | FastAPI · Python 3.12 · SQLAlchemy 2 | Separate repository |
 
-### Tells you whether it is getting better
+## Getting started
 
-Analyse a repository twice and the second report says what moved: how many
-findings were resolved, how many are new, and which. Findings carry a
-rule-supplied fingerprint that survives the edits which are not the point — a
-dependency version bump, a line count changing, code inserted above — so the
-comparison reports the two things that actually changed rather than the dozen
-that merely look different.
+**Requires** Node 20+ and Python 3.12+.
 
-The comparison is computed when the report is created and stored on it, so a
-shared report keeps saying what it said when you shared it.
-
-### Opens the file
-
-Every finding links to its line in a real file view, with the tree beside it and
-findings marked in the gutter. Repository source is re-fetched from GitHub
-pinned to the exact commit that was analysed, so line 47 is the line the rule
-saw; uploaded archives keep their source, because nothing can re-fetch it.
-
-### Lets you accept what you are living with
-
-Some findings are real and you are going to live with them anyway — a key in a
-test fixture, a long file nobody is splitting this quarter. Signed in, mark one
-**Not an issue** with a reason and it stops appearing on every future analysis
-of that repository.
-
-Keyed on the fingerprint rather than the report, so it survives re-runs. Never
-silent: the count stays on screen with a toggle to reveal what was accepted.
-Reversible without re-analysing. The score is shown both ways — adjusted, with
-the analysed figure beside it — because a number that quietly absorbed its own
-exceptions could not be checked.
-
-### Explains and proposes fixes
-
-With an API key configured, ask a model to explain a finding, propose a patch,
-or generate a test — each scoped to that one finding. Proposed fixes are diffs
-you review; **Vantage never writes to your working tree.**
-
-### Scores it
-
-A weighted, saturating score with a per-category breakdown the UI explains.
-Security and dependency issues are judged on absolute count; quality scales
-sub-linearly with project size, so a large codebase is neither excused nor
-automatically condemned. Findings are weighted by severity **and** confidence.
-
----
-
-## Running it locally
-
-Requires **Node 20+** and **Python 3.12+**. The two halves are separate
-repositories, so clone both:
+The two halves are separate repositories, so clone both:
 
 ```bash
 git clone https://github.com/Asmodeus14/vantage-backend
 git clone https://github.com/Asmodeus14/vantage-frontend
 ```
 
-**Backend**, in one terminal:
+**1 — API**, in one terminal:
 
 ```bash
 cd vantage-backend
 python -m venv menv && menv/Scripts/activate   # Linux/macOS: source menv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env                           # every variable is optional
+cp .env.example .env
 python -m uvicorn app.main:app --reload --port 5000
 ```
 
-**Frontend**, in another:
+**2 — Web client**, in another:
 
 ```bash
 cd vantage-frontend
@@ -126,118 +220,194 @@ cp .env.example .env.local
 npm run dev
 ```
 
-App at <http://localhost:3000>, API docs at <http://127.0.0.1:5000/docs>.
+Open <http://localhost:3000>. The API's interactive docs are at
+<http://127.0.0.1:5000/docs>.
 
-### It runs with no configuration at all
+### It runs with nothing configured
 
-Neither the AI key nor the database is required. Without them:
+Neither an AI key nor a database is required, and every absence is reported
+rather than hidden:
 
-- **No `GEMINI_API_KEY`** — analysis is unaffected. Explain / Propose fix /
-  Generate test render **disabled with the reason stated**. No canned responses
-  are ever substituted for a model.
-- **No `DATABASE_URL`** — reports are held in memory and cleared on restart.
-  `/api/health` and the UI say so explicitly.
-- **No sign-in configuration** — public repositories still analyse. The sign-in
-  control renders **disabled with the reason shown**, naming the missing
-  variables, rather than being hidden.
-
-## Configuration
-
-This repository reads six variables. **Backend configuration is documented in
-the [backend README](https://github.com/Asmodeus14/vantage-backend#configuration)**
-rather than repeated here, because two copies drift.
-
-| Variable | Notes |
+| Missing | What happens |
 |---|---|
-| `BACKEND_URL` | Server-side only. Used by Server Components and route handlers; never reaches the browser. |
-| `NEXT_PUBLIC_BACKEND_URL` | Sent to the browser. Needed for the two things that cannot be proxied: the **SSE progress stream** (serverless buffers streaming responses) and the **ZIP upload** (serverless request bodies are capped at a few MB). |
-| `GITHUB_CLIENT_ID` | Sign-in. Same value as the backend. |
-| `GITHUB_CLIENT_SECRET` | Sign-in. Server-side only; the backend deliberately never reads it. |
-| `INTERNAL_API_SECRET` | Sign-in. **Must match the backend exactly.** |
-| `SESSION_SECRET` | Sign-in. Signs the OAuth `state`. |
+| `GEMINI_API_KEY` | Analysis is unaffected. The AI actions render **disabled with the reason shown** — no canned response is ever substituted for a model. |
+| `DATABASE_URL` | Reports are held in memory and cleared on restart. `/api/health` and the UI say so. |
+| Sign-in variables | Public repositories still analyse. The sign-in control renders disabled, naming the variables that are missing. |
 
-## Sign-in
+## Environment variables
 
-Optional, and worth it for three concrete reasons:
+Copy `.env.example` to `.env.local`. This repository reads six variables; the
+API has its own set, documented in
+[its README](https://github.com/Asmodeus14/vantage-backend#configuration).
 
-- **Reports become yours.** Signed out, History shows only reports that belong
-  to nobody. Signed in, it shows yours. Anonymous reports stay reachable by
-  their unguessable URL — they are simply never enumerated.
-- **Your GitHub rate limit, not the server's.** 5000 requests an hour instead of
-  a shared 60. Commit-churn analysis spends one request per file carrying a
-  finding, so the shared budget runs out quickly.
-- **Private repositories**, if you separately grant it.
+**Required**
 
-Sign-in asks for `read:user` only. `repo` — which GitHub scopes as read **and
-write** to every private repository you own — is requested exclusively through a
-separate opt-in on the Settings page.
+| Variable | Purpose |
+|---|---|
+| `BACKEND_URL` | Where the API is, for Server Components and route handlers. Server-side only — never sent to the browser, so the API origin can stay private. Defaults to `http://127.0.0.1:5000`. |
+| `NEXT_PUBLIC_BACKEND_URL` | The same API, but reachable from the browser. Needed for the two paths that cannot be proxied: the SSE progress stream and the ZIP upload. Defaults to `http://127.0.0.1:5000`. |
 
-**Setting it up:** create an OAuth App at
-<https://github.com/settings/developers> with callback
-`<your-origin>/api/auth/github/callback`, then fill the six variables above and
-the three on the backend. Both `.env.example` files carry the generation
-commands for the shared secrets.
+**Optional — sign-in.** All four are required together; with any missing,
+sign-in reports itself unconfigured and everything else still works.
 
-The OAuth exchange happens on *this* server, not the API, so the session cookie
-is first-party — a cookie set by the API would be third-party in production and
-blocked by Safari and by Firefox in strict mode. See
-[`SECURITY.md`](SECURITY.md).
+| Variable | Purpose |
+|---|---|
+| `GITHUB_CLIENT_ID` | From your GitHub OAuth App. The API needs the same value. |
+| `GITHUB_CLIENT_SECRET` | Used only in this server's OAuth callback. The API deliberately never reads it. |
+| `INTERNAL_API_SECRET` | Authenticates this server to the API when exchanging a GitHub token for a session. Not a user credential. **Must match the API exactly.** |
+| `SESSION_SECRET` | Signs the OAuth `state` parameter. Stateless, so sign-in works across multiple server instances. |
 
-## Testing
+Create the OAuth App at <https://github.com/settings/developers> with the
+callback URL `<your-origin>/api/auth/github/callback`. `.env.example` carries
+the commands for generating the two shared secrets.
 
-```bash
-npm run test        # 131 tests
-npm run typecheck
-npm run lint
-npm run build       # the one that catches Server/Client Component mistakes
+Never commit `.env.local`. It is gitignored; keep it that way.
+
+## Project structure
+
+```
+app/
+├── page.tsx                  Analyse — repository URL, ZIP upload, repo picker
+├── analysing/[jobId]/        Live SSE progress
+├── r/[id]/                   Report — Overview · Findings · Dependencies · Activity
+│   └── f/[...path]/          File viewer with finding gutter
+├── history/                  Past analyses, grouped by repository
+├── settings/                 Account, appearance, server capabilities, shortcuts
+└── api/                      Route handlers — proxy to the API, plus OAuth
+components/
+├── report/                   Report surfaces, the file viewer, AI actions
+├── charts/                   Hand-rolled SVG chart primitives
+├── markdown/                 Model-output renderer and code blocks
+└── ui/                       Primitives on Radix, restyled to our tokens
+lib/
+├── types.ts                  Mirrors the API's schemas — the contract
+├── api.ts                    Typed client with uniform structured errors
+├── session.ts                Signed OAuth state and session cookie (server-only)
+├── scale.ts                  Chart maths — scales, ticks, path builders
+└── use-analysis-stream.ts    SSE state machine
+docs/                         Architecture, roadmap, brand, product audit
+tests/                        Vitest + Testing Library
 ```
 
-All four run in CI on every push and pull request. The suite covers the markdown
-renderer (including XSS), the chart maths and their accessible fallbacks, OAuth
-state signing and the open-redirect guard, the file viewer, and the report
-panels.
+## Development
 
-The backend has its own suite of 302 tests — see its README. Counts go stale;
-regenerate from the Vitest summary line.
+| Command | What it does |
+|---|---|
+| `npm run dev` | Development server on port 3000 |
+| `npm run build` | Production build |
+| `npm start` | Serve the production build |
+| `npm run lint` | ESLint |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run test` | Vitest, once |
+| `npm run test:watch` | Vitest in watch mode |
 
-## Deployment
+All four checks run in CI on every push and pull request. Run them before
+opening one — `build` in particular, because several App Router mistakes surface
+nowhere else.
 
-**Frontend → Vercel.** Set `BACKEND_URL`, `NEXT_PUBLIC_BACKEND_URL`,
-`GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `INTERNAL_API_SECRET` and
-`SESSION_SECRET`. Leave the Output Directory unset — Next.js emits `.next`.
+`app/dev/markdown` renders every markdown fixture for visual inspection of the
+model-output renderer.
 
-**Backend → Render**, covered in its own README.
-
-Omitting the sign-in variables is supported — the app runs and says sign-in is
-unconfigured — but omitting them *by accident* is the likely mistake, so check
-`/api/health` after deploying.
-
-Free tiers sleep when idle; the UI reports a waking backend rather than
-appearing hung.
-
-## Documentation
-
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — how the browser side is put
-  together, and why
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — known limitations and what is next
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — setup, conventions, and the things that
-  are deliberate rather than accidental
-- [`SECURITY.md`](SECURITY.md) — reporting a vulnerability, and the XSS and
-  cookie model
-- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
-- [`docs/PRODUCT_AUDIT.md`](docs/PRODUCT_AUDIT.md) — audit of the version this
-  replaced, and why it was rebuilt
-- [Backend architecture](https://github.com/Asmodeus14/vantage-backend/blob/master/docs/ARCHITECTURE.md)
-  — rule engine, finding identity, persistence, security model
-
-## Keyboard
+### Keyboard
 
 | Shortcut | Action |
 |---|---|
 | `⌘/Ctrl K` | Command palette |
 | `/` | Focus the findings filter |
 | `j` / `k` | Next / previous finding |
-| `Esc` | Close palette or dialog |
+
+## Deployment
+
+| Unit | Platform | Notes |
+|---|---|---|
+| Web client | Vercel | Set the six variables above. Leave the Output Directory unset — Next.js emits `.next`. |
+| API | Render | `render.yaml` is committed in that repository; its start command runs migrations before the server. |
+| Database | Neon Postgres | Optional. Without it, reports live in memory. |
+
+Omitting the sign-in variables is supported — but omitting them *by accident* is
+the likely mistake, so check `/api/health` after deploying. Free tiers sleep when
+idle; the UI reports a waking backend rather than appearing hung.
+
+## Roadmap
+
+Shipped:
+
+- [x] Rule engine over npm and PyPI dependencies, secrets, React and Python
+      correctness, and structure
+- [x] Finding identity that survives an edit, and report-to-report diffing
+- [x] Accepting findings, per repository, reversibly
+- [x] File viewer with a finding gutter
+- [x] AI actions scoped to one finding, with whole-file context
+- [x] GitHub sign-in, report ownership, repository picker
+- [x] CI on both repositories
+
+Planned:
+
+- [ ] Reachability for transitive advisories — "your lockfile mentions a
+      vulnerable package" versus "your code can reach it"
+- [ ] PR/CI mode: a GitHub Action commenting only on what a pull request
+      introduced
+- [ ] More Python lockfile formats (`Pipfile.lock`, `uv.lock`) so range-declared
+      projects get scanned, not just listed
+- [ ] Streaming AI responses
+- [ ] Verify sign-in in Safari and Firefox strict mode
+
+Known limitations are tracked honestly in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
+## Contributing
+
+1. Fork and branch from `master`.
+2. Make the change, with tests — and for a bug, a test that fails first.
+3. Run `npm run lint`, `npm run typecheck`, `npm run test` and `npm run build`.
+4. Update the documentation in the same pull request.
+5. Open a pull request describing what changed and **why**.
+
+[`CONTRIBUTING.md`](CONTRIBUTING.md) covers the conventions and, more usefully,
+the things that are deliberate rather than accidental — so they are not
+"simplified" away.
+
+## Security
+
+Never commit API keys or secrets; everything sensitive is an environment
+variable, and `.env.local` is gitignored.
+
+To report a vulnerability, use GitHub's private reporting rather than a public
+issue. [`SECURITY.md`](SECURITY.md) has the details, along with what is already
+defended: model output is never parsed as markup, the session cookie is
+first-party and `HttpOnly`, and the OAuth `state` is signed so sign-in cannot
+become an open redirect.
+
+## FAQ
+
+**What is Vantage?**
+A static analyser for repositories that remembers. It reports vulnerabilities,
+committed secrets, correctness bugs and structural problems anchored to a file
+and line — and, on a second run, what changed since the first.
+
+**Which model does it use?**
+Google Gemini, called by the API rather than the browser. The model is
+configurable; the default is `gemini-3.6-flash`.
+
+**Do I need an API key?**
+No. Analysis is entirely rule-based and works without one. A key only enables
+the three AI actions, which render disabled with the reason when it is absent.
+
+**Does it need a database?**
+No. Without `DATABASE_URL` reports are held in memory and cleared on restart,
+and the UI says so.
+
+**Is it self-hostable?**
+Yes — both halves. Neither requires an account with anything except GitHub, and
+only for optional sign-in.
+
+**Does it change my code?**
+No. Proposed fixes are diffs you review. Vantage never writes to a working tree,
+which is also the backstop that stops a prompt injection becoming code
+execution.
+
+**Why two repositories?**
+They deploy independently to different platforms and have separate release
+cadences. `lib/types.ts` mirrors the API's schemas to keep the contract explicit.
 
 ## Licence
 
