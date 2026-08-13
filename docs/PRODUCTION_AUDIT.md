@@ -18,13 +18,13 @@ from a single session would be theatre.
 retrofitted: archive containment covers ZIP and tar under one policy, model
 input is fenced and output validated, the AI endpoint takes a closed enum with
 no free-text parameter, secrets are redacted before storage, GitHub tokens are
-encrypted at rest and sessions stored as hashes. Test coverage is real — 307
+encrypted at rest and sessions stored as hashes. Test coverage is real — 310
 backend and 131 frontend tests, run in CI, covering the authorisation matrix and
 the containment paths specifically. Degradation is honest throughout: every
 absent dependency is reported rather than hidden.
 
-**Weak.** Nothing prunes anything. Reports, source blobs and expired sessions
-accumulate for ever, and Neon free storage is finite. Rate limiting is
+**Weak.** Reports still accumulate — slowly, at ~10 kB each — though stored
+source and expired sessions are now bounded. Rate limiting is
 process-local while Render runs two workers, so the effective limit is roughly
 double what is configured. Some of the free-tier behaviour is documented in
 prose that a deployer will not read at the moment they need it.
@@ -51,14 +51,14 @@ Measured, not impressionistic. `Before` is the state at the start of this pass.
 | Product — clarity, UX, usefulness | 8 | 8 | Unchanged in this pass |
 | Frontend — architecture, quality, a11y | 8 | 8 | Already sound; bundle verified healthy |
 | Backend — architecture, API design | 8 | 8 | Unchanged |
-| Database — schema, indexes, queries | 6 | 7 | N+1 on suppression fixed; retention still absent |
+| Database — schema, indexes, queries | 6 | 8 | N+1 fixed; stored source now bounded by a byte ceiling |
 | AI integration | 7 | 7 | Correct and bounded; token usage still unmeasured |
 | Security | 8 | 9 | Private repositories guarded in code, not only by token scope |
 | Performance | 7 | 8 | One round-trip instead of N on every suppression |
-| Reliability | 6 | 7 | Session table no longer grows unbounded |
-| Testing | 8 | 8 | +5 tests; the session sweep is untested (see gaps) |
+| Reliability | 6 | 8 | Neither sessions nor stored source grow unbounded |
+| Testing | 8 | 8 | +8 tests; the session sweep is untested (see gaps) |
 | Documentation | 8 | 9 | Free-tier architecture documented with measurements |
-| Free-tier efficiency | 6 | 7 | Fewer round-trips, bounded session growth |
+| Free-tier efficiency | 6 | 8 | Fewer round-trips; sessions and stored source both bounded |
 | **Overall** | **7** | **8** | |
 
 Not 10 anywhere, and deliberately so. A 10 would mean retention, distributed
@@ -147,16 +147,18 @@ than a fresh API call — because a guard needing the network fails open exactly
 when the rate limit is exhausted. Four tests, including one asserting an
 ordinary public report is untouched.
 
+**4. Stored source grew without bound** — *free-tier risk, fixed*
+
+Nothing pruned `source_blobs`; an upload keeps up to 8 MB gzipped. Now bounded
+by a total-bytes ceiling, evicting oldest-first, whole reports at a time.
+Revision `0007` adds the timestamp the ordering needs. Verified against live
+Postgres: columns and index present, prune at the real budget correctly a no-op
+on an empty table.
+
+Bounded by bytes rather than a per-owner count deliberately — *N* uploads per
+account is unbounded in accounts, and disk is the constraint that exists.
+
 ### Found, not fixed — with reasons
-
-**4. Nothing is ever pruned** — *the main free-tier risk*
-
-No retention on `reports` or `source_blobs`. Reports are ~10 kB each, so growth
-is slow. `source_blobs` is the real exposure: an upload stores up to 8 MB
-gzipped, so a few hundred uploads would approach Neon's free storage.
-
-Not fixed because automatically deleting user data is a product decision, not a
-technical one. See `PRODUCT_GAPS.md` for the concrete proposal.
 
 **5. Rate limiting is process-local while Render runs two workers**
 

@@ -89,10 +89,16 @@ part for no benefit at this size.
 listing needs, which is what keeps History cheap. It is also why the
 suppression-adjusted score is cached on the row rather than computed on read.
 
-**Storage is the real constraint, and nothing prunes.** Reports at ~10 kB grow
-slowly. `source_blobs` is the exposure: an upload stores up to 8 MB gzipped, so
-a few hundred uploads would approach the free storage allowance. There is no
-retention policy — see `PRODUCT_GAPS.md`.
+**Storage is the real constraint, and stored source is now bounded.** Reports at
+~10 kB grow slowly. `source_blobs` was the exposure — an upload keeps up to 8 MB
+gzipped — and is now capped by a total-bytes ceiling, evicting oldest-first and
+whole reports at a time. Bounded by bytes rather than a per-owner count on
+purpose: *N* uploads per account is unbounded in accounts, while disk is the
+constraint that actually exists.
+
+Reports themselves are still unpruned. At ~10 kB each that is a slow problem,
+and deleting someone's reports is a product decision rather than a technical
+one.
 
 **Sequential scans are not evidence of a missing index** at this size. With 24
 rows the planner correctly prefers a scan. Indexes exist for the query patterns
@@ -141,9 +147,12 @@ Activity panel degraded to its rate-limit message and the file tree failed twice
 before succeeding.
 
 Setting `GITHUB_TOKEN` raises it to 5000/hour. **Scope it to public repositories,
-read-only.** `_credentials_for` falls back to this token for anonymous callers
-and nothing checks repository visibility, so a token with private access would
-expose private code through the file viewer.
+read-only.** `_credentials_for` falls back to this token for anonymous callers,
+so a token with private access would otherwise be the only thing standing
+between a visitor and private code. The code no longer relies on that: analysis
+refuses a private repository without user credentials, and the file viewer
+refuses from a flag recorded at analysis time. Scope the token anyway — defence
+in depth means both.
 
 Signed-in users spend their own budget, not the server's — which is most of why
 sign-in exists.
@@ -156,7 +165,7 @@ sign-in exists.
 |---|---|---|---|
 | Rate limiting is per-process | Two workers, no shared store | Documented, not overstated | Redis-backed limiter keyed on session |
 | Jobs are in-process | No queue available | Correct for one instance | Redis or Postgres `LISTEN/NOTIFY` |
-| Nothing is pruned | No scheduler, and deletion is a product decision | Documented; proposal in `PRODUCT_GAPS.md` | A scheduled job |
+| Reports are not pruned | Deleting user data is a product decision | Stored source *is* bounded; reports grow at ~10 kB | A visible retention policy |
 | Cold starts | Free instances sleep | Client reports a waking backend | Always-on instance |
 | AI cost unmeasured | No metrics sink | Structurally bounded | Any observability platform |
 

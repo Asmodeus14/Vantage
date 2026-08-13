@@ -10,6 +10,23 @@ measured problem or a stated consequence of the free-tier constraint.
 
 ## Closed
 
+### Stored source grew without bound — *fixed*
+
+Nothing pruned `source_blobs`, and an upload keeps up to 8 MB gzipped, so a few
+hundred would approach a small managed database's whole allowance.
+
+Now bounded by total bytes rather than a per-owner count — *N* uploads per
+account is unbounded in accounts, and the constraint that actually exists is
+disk. Revision `0007` adds the timestamp the eviction sorts on, because
+`report_id` is a random token carrying no time and the report row may already be
+gone. Eviction takes whole reports: half a project is a broken tree, which is
+worse than an absent one that says so, and `StoredSourceProvider` already has
+the sentence for it.
+
+Pruning runs after a write, not before, so an oversized upload cannot slip in
+over the ceiling — and a failure there is logged rather than failing the upload,
+since the source is stored by then and the cost is being briefly over budget.
+
 ### Anonymous callers could reach private repositories — *fixed*
 
 `_credentials_for` fell back to the server's GitHub token for anonymous callers
@@ -30,39 +47,13 @@ source does not.
 
 ---
 
-## Critical
-
-Fix before running this for other people.
-
-### 1. No data retention
-
-Nothing prunes `reports` or `source_blobs`. Measured: reports are ~10 kB each,
-so growth is slow; an upload stores up to 8 MB gzipped, so a few hundred uploads
-would approach Neon's free storage allowance.
-
-**Not implemented deliberately** — automatically deleting someone's reports is a
-product decision, not a technical one, and getting it wrong destroys data.
-
-**Proposal, in order of safety:**
-
-1. **Prune blobs, not reports.** Source is a cache: `StoredSourceProvider`
-   already has an "the source for this upload was not kept" path, so its absence
-   degrades to a sentence rather than a broken page. Keep blobs for the newest
-   *N* uploads per owner, dropped oldest-first when a new upload arrives.
-2. **Then, if needed, prune anonymous reports** older than some window. Anonymous
-   reports have no account to notify and are already unlisted.
-3. **Never silently prune an owned report.** If that becomes necessary, it needs
-   a visible retention policy in the UI first.
-
-Step 1 alone removes the growth risk, because reports are the slow part.
-
 ---
 
 ## Important
 
-Materially improves quality; not blocking.
+Nothing is blocking any more. These materially improve quality.
 
-### 2. The expired-session sweep is untested
+### 1. The expired-session sweep is untested
 
 The sweep added in this pass has no test, because the suite runs without a
 database — deliberately, so results do not depend on whose machine it runs on.
@@ -74,7 +65,7 @@ runs for SQLite. This would also unlock testing `PostgresReportStore` and
 in-memory twins — the exact gap that let the `bindparam` bug reach live
 Postgres during this audit.
 
-### 3. Gemini usage is unmeasured
+### 2. Gemini usage is unmeasured
 
 Context is bounded and prompts are server-assembled, so cost is structurally
 controlled — but nothing records what a call actually costs. "Token efficient"
@@ -84,7 +75,7 @@ is an argument, not a measurement.
 metrics platform, no new dependency; enough to see whether the 160-line window
 is the right size.
 
-### 4. Range-declared Python projects are not scanned
+### 3. Range-declared Python projects are not scanned
 
 An exact version is required to query OSV. Python reads `poetry.lock` and `==`
 pins. A project declaring only `fastapi>=0.115` gets its dependencies listed but
@@ -92,7 +83,7 @@ no advisories. Measured on the API's own repository: 18 collected, 0 resolvable.
 
 **Fix:** parse `Pipfile.lock` and `uv.lock`, and `pip freeze`-style requirements.
 
-### 5. Sign-in is unverified in Safari and Firefox strict mode
+### 4. Sign-in is unverified in Safari and Firefox strict mode
 
 The consent step needs a human. This is the one failure mode that passes every
 Chrome test, because the first-party cookie design exists specifically to
