@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -9,14 +10,22 @@ import { repoShortName } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-async function load(id: string) {
+/**
+ * Deduplicated for the render pass.
+ *
+ * `generateMetadata` and the page body both need the report, and without this
+ * each one issued its own request — two full round-trips to the API before any
+ * HTML was sent, on a host that sleeps when idle. `cache()` collapses them into
+ * one for the lifetime of the request.
+ */
+const load = cache(async (id: string) => {
   try {
     return await api.getReport(id, { headers: await authHeaders() });
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;
   }
-}
+});
 
 /**
  * Previous analyses of the same repository, for the trend panel.
