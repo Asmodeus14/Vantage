@@ -28,7 +28,10 @@
 
   --fg: hsl(222 30% 12%);
   --fg-muted: hsl(220 10% 42%);
-  --fg-subtle: hsl(220 9% 56%);
+  /* 4.7:1 on --canvas. Was 56% lightness, which measured 3.41:1 and failed
+     WCAG AA — timestamps, finding counts and file paths all use this, so it is
+     carrying real information rather than decoration. */
+  --fg-subtle: hsl(220 9% 46%);
   --fg-on-accent: hsl(0 0% 100%);
 
   /* Inline code. Distinct from --surface-sunken, which is darker than the
@@ -103,7 +106,9 @@
 
   --fg: hsl(210 20% 93%);
   --fg-muted: hsl(215 14% 62%);
-  --fg-subtle: hsl(217 12% 48%);
+  /* 4.7:1 on --canvas. The audit only measured light mode, but the same token
+     computed to 4.2:1 here, so it was failing unreported. */
+  --fg-subtle: hsl(217 12% 51%);
   --fg-on-accent: hsl(0 0% 100%);
 
   --code-inline: hsl(220 14% 19%);

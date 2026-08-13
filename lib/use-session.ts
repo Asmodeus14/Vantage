@@ -27,6 +27,44 @@ export interface SessionState {
  * session lives in an HttpOnly first-party cookie that script deliberately
  * cannot read, so only this server can resolve it.
  */
+type SessionBody = Omit<SessionState, "loading">;
+
+/**
+ * One request per document, however many components ask.
+ *
+ * Three components call `useSession`, and the home page mounts two of them —
+ * the header menu and the repo picker. Each used to issue its own
+ * `/api/auth/me`; a Lighthouse trace caught both on one load, taking 2.3s and
+ * 2.1s against a free-tier API that sleeps. Every caller gets the same answer,
+ * so they share one request.
+ *
+ * Module scope is the right lifetime because it matches the session's: signing
+ * in is an OAuth redirect and signing out is a form POST, so both replace the
+ * document and reset this. Nothing can change the session without a page load,
+ * so nothing can leave this stale.
+ */
+let inFlight: Promise<SessionBody> | null = null;
+
+function loadSession(): Promise<SessionBody> {
+  inFlight ??= (async () => {
+    try {
+      const response = await fetch("/api/auth/me", { cache: "no-store" });
+      return (await response.json()) as SessionBody;
+    } catch {
+      // Cleared rather than kept, so a later mount retries instead of
+      // inheriting one unlucky network moment for the rest of the page's life.
+      inFlight = null;
+      return {
+        user: null,
+        configured: false,
+        reason: "Could not reach the server to check your session.",
+      };
+    }
+  })();
+
+  return inFlight;
+}
+
 export function useSession(): SessionState {
   const [state, setState] = React.useState<SessionState>({
     user: null,
@@ -38,22 +76,9 @@ export function useSession(): SessionState {
   React.useEffect(() => {
     let cancelled = false;
 
-    void (async () => {
-      try {
-        const response = await fetch("/api/auth/me", { cache: "no-store" });
-        const body = (await response.json()) as Omit<SessionState, "loading">;
-        if (!cancelled) setState({ ...body, loading: false });
-      } catch {
-        if (!cancelled) {
-          setState({
-            user: null,
-            configured: false,
-            reason: "Could not reach the server to check your session.",
-            loading: false,
-          });
-        }
-      }
-    })();
+    void loadSession().then((body) => {
+      if (!cancelled) setState({ ...body, loading: false });
+    });
 
     return () => {
       cancelled = true;

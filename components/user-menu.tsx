@@ -9,6 +9,24 @@ import { useSession } from "@/lib/use-session";
 import { cn } from "@/lib/utils";
 
 /**
+ * GitHub serves avatars at whatever `?s=` asks for, defaulting to 460px. That
+ * default was arriving as 21 kB for an 18px slot — larger than any script on
+ * the page bar two. 64px covers the slot at 3x.
+ *
+ * Left untouched if the URL will not parse, because a working oversized avatar
+ * beats a broken right-sized one.
+ */
+function avatarAt(url: string, size: number): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("s", String(size));
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
  * Sign in, or who you are signed in as.
  *
  * When sign-in is not configured the control is **disabled with the reason
@@ -28,6 +46,11 @@ export function UserMenu() {
     return (
       <Link
         href="/settings"
+        // The username is hidden below `sm`, and the avatar is decorative, so
+        // on a phone this link had no accessible name at all — a Lighthouse
+        // audit reported it as an unnamed link in the tab order. The label does
+        // not depend on the viewport, so neither does the name.
+        aria-label={`Account settings — signed in as ${user.login}`}
         className={cn(
           "flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[13px]",
           "text-fg-muted transition-colors duration-(--duration-fast) hover:bg-surface-hover hover:text-fg",
@@ -39,7 +62,7 @@ export function UserMenu() {
           // saves, so the plain element is deliberate.
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={user.avatar_url}
+            src={avatarAt(user.avatar_url, 64)}
             alt=""
             width={18}
             height={18}

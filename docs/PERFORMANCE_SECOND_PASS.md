@@ -1,140 +1,156 @@
 # Second-pass performance investigation
 
-## Previous
+All figures are Lighthouse mobile, `throttlingMethod: simulate`, against
+`https://vantage67.vercel.app/`.
 
-```
-FCP  3.5s    LCP  5.2s    TBT  1,730ms    Speed Index  3.0s
-```
-
-## Current
-
-```
-FCP  3.2s    LCP  3.9s    TBT    730ms    Speed Index  20.8s
-server response ~42ms
-```
-
-TBT down 58%, LCP down 25%. Speed Index up **7×**.
+| | Before | After | |
+|---|---|---|---|
+| Speed Index | 20.8s | **7.7s** | −63% |
+| LCP | 3.9s | **3.5s** | −10% |
+| FCP | 3.2s | 3.2s | — |
+| TBT | 730ms | 930ms | +27% |
+| CLS | 0 | 0 | — |
+| Performance | — | 0.57 | |
 
 ---
 
-## Root cause
+## Part 1 — Speed Index 20.8s
 
-**Infinite CSS animations on the loading state.**
+**Cause: infinite CSS animations on the loading state. Introduced by the
+previous pass.**
 
-Speed Index is computed from a filmstrip: each frame is compared against the
-final frame, and the metric integrates how long the page spends visually
-incomplete. **A region that never stops changing means the page is never
-visually complete**, so the integral keeps accumulating regardless of when
-content actually arrived.
+Speed Index integrates how long a page spends visually different from its final
+frame, so a region that never stops changing means the page is never visually
+complete. `animate-pulse` is `animation: … infinite`, and it was on the shared
+`Skeleton` primitive plus the `TrendSkeleton` added in the streaming pass.
 
-`Skeleton` — the shared primitive — carried Tailwind's `animate-pulse`, which is
-`animation: pulse 2s … infinite`. On the audited page:
+Replaced with `animate-skeleton` — the same pulse, bounded to four cycles,
+disabled under `prefers-reduced-motion`.
 
-- `app/r/[id]/loading.tsx` renders **12 skeletons** while the route resolves.
-- `overview-panel.tsx`'s `TrendSkeleton` pulses inside the Suspense boundary
-  until the trend history arrives.
+**Confirmed by measurement: 20.8s → 7.7s.**
 
-Every one of them oscillated for the entire trace.
-
-## Evidence
-
-The strongest evidence is the shape of the change itself.
-
-| | Before pass 1 | After pass 1 |
-|---|---|---|
-| Speed Index | **3.0s** | **20.8s** |
-| LCP | 5.2s | 3.9s |
-| TBT | 1,730ms | 730ms |
-
-Everything measuring *when content arrives* improved. The only metric that
-measures *when pixels stop changing* got 7× worse — in the same pass that added
-a persistently pulsing Suspense fallback to that exact page.
-
-The supporting facts:
-
-- **Server response is ~42ms.** Backend latency cannot explain 20.8s, and the
-  brief was right to rule it out.
-- **LCP 3.9s and Speed Index 20.8s cannot both describe content arrival.**
-  LCP says the largest element painted at 3.9s. A Speed Index 5× larger than
-  LCP is not measuring arrival; it is measuring instability.
-- **CLS is 0**, so the churn is not layout shift. That leaves paint-level
-  change, which is what an opacity animation is.
-- 14 infinite animations existed across the app; the ones on this page's
-  critical path were all `animate-pulse` skeletons.
-
-### What was ruled out, with reasons
-
-- **IndexedDB** — Vantage uses none. Confirmed again this pass: no `indexedDB`,
-  no `idb`, no `sessionStorage`. The Lighthouse warning is not about this app.
-- **Fonts** — none loaded; system stack. Also why CLS is 0.
-- **Images** — none on the report page's critical path.
-- **Syntax highlighting / markdown** — Shiki is a dynamic import and absent from
-  every first load. Neither is on this page's critical path.
-- **DOM size** — findings now render 30 at a time (pass 1), which is what took
-  TBT from 1,730ms to 730ms.
+The residual is no longer animation. Observed Speed Index is now 4,415ms against
+an observed first paint of 4,366ms — visual completeness lands within 50ms of
+the first pixel, which is what a settled filmstrip looks like. The remaining
+7.7s is Lantern's simulated figure for a page that shows nothing for 4.3s, which
+is Part 2.
 
 ---
 
-## Change
+## Part 2 — 4.3 seconds of blank white screen
 
-**One change, matching the one cause.**
+The filmstrip is the finding. **Five consecutive frames — 872ms, 1743ms,
+2615ms, 3487ms, 4358ms — are blank white.** First visual change: 4,365ms.
 
-`animate-pulse` replaced with `animate-skeleton`: the same pulse, bounded to
-four cycles.
+The LCP breakdown says exactly where it went:
 
-```css
-.animate-skeleton {
-  animation: skeleton-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) 4;
-}
+| Subpart | Duration |
+|---|---|
+| Time to first byte | 61ms |
+| **Element render delay** | **4,305ms** |
+
+And the document request:
+
+```
+GET /              networkRequestTime    16.8ms
+                   server response       43ms      ← fast
+                   networkEndTime      3,479ms     ← 3.46s to finish streaming
 ```
 
-The affordance is kept — a skeleton still visibly pulses while work is
-happening — but it settles, so the filmstrip can reach completeness. Eight
-seconds is far longer than any healthy load, and anything still skeletal after
-that has a problem a pulse will not fix.
+43ms to the first byte, 3.46s to the last one. The server was not slow; the
+response was held open. `HomePage` awaited `recentReports()` at the top of the
+component, so nothing could flush until the API answered.
 
-`prefers-reduced-motion` disables it entirely, consistent with the rest of the
-stylesheet.
+The knock-on is visible in the waterfall: the stylesheet is not even *requested*
+until 3,587ms, because the parser cannot discover it until the document ends.
+Every script follows it.
 
-Applied to every skeleton: the shared primitive, both route-level loading
-states, and the trend fallback.
+**Fixed.** The page component now contains no `await` and touches no dynamic
+API. The shell — heading, form, section frame — flushes on the first chunk; the
+recent list streams in behind a `<Suspense>` boundary. The fallback renders the
+same heading component as the resolved list and reserves real row heights, so
+CLS stays at 0.
 
----
-
-## Before / after
-
-| | Before | After |
-|---|---|---|
-| Tests | 134 | 134 passing |
-| Bundle (shared) | 107 kB | 107 kB |
-| `/r/[id]` first load | 212 kB | 212 kB |
-| Infinite animations on the report path | 12+ | 0 |
-
-**No after-measurement of Lighthouse.** The fix is verified by build, lint,
-typecheck and the suite; its effect on Speed Index is reasoned from how the
-metric is defined, not measured. That measurement is the next step and it is
-cheap — one Lighthouse run.
+This was already scheduled in `PERFORMANCE_AUDIT.md` as "make the shell static".
+The trace moved it from *plausible* to *measured*.
 
 ---
 
-## Remaining bottleneck
+## Part 3 — three further defects the trace exposed
 
-**FCP 3.2s**, and it is architectural rather than incidental.
+### `/api/auth/me` was requested twice, at 2.3s and 2.1s
 
-Every page route is `force-dynamic`, so no HTML is sent until the API answers.
-Server response is 42ms warm, which means FCP of 3.2s is dominated by the round
-trip plus render, not by the server itself. The fix is a static shell with the
-data streamed in — planned in `PERFORMANCE_AUDIT.md`, not yet done.
+```
+/api/auth/me   4,556ms → 6,868ms   (2,312ms)
+/api/auth/me   4,572ms → 6,666ms   (2,094ms)
+```
+
+`useSession` fetched per-consumer, and the home page mounts two of them —
+`UserMenu` and `RepoPicker`. Both got the same answer, twice, from an API that
+sleeps on the free tier.
+
+Deduplicated at module scope. That lifetime matches the session's: signing in is
+an OAuth redirect and signing out is a form POST, so both replace the document
+and reset the cache. Nothing can change the session without a page load, so
+nothing can leave it stale. A failed request clears the cache so a later mount
+retries.
+
+### The account link had no accessible name
+
+Lighthouse `link-name` failed, and it is a genuine bug rather than a scoring
+artefact. The username is `hidden sm:inline` and the avatar is `alt=""`, so on a
+phone the link is in the tab order with nothing to announce. Given an
+`aria-label` that does not depend on the viewport.
+
+### `--fg-subtle` failed WCAG AA
+
+3.41:1 on white, against a 4.5:1 requirement, on four elements. Not decoration —
+timestamps, finding counts and file paths all use this token. Darkened to 4.7:1.
+
+The audit only measured light mode. Computing the dark value showed it at 4.2:1,
+also failing and never reported, so both were fixed.
 
 ---
 
-## Decision
+## TBT went the wrong way — and this run cannot say why
 
-**Yes, one more pass is justified — but measure first.**
+730ms → 930ms. Two things prevent me from calling that a regression:
 
-Re-run Lighthouse before changing anything else. If Speed Index drops to roughly
-LCP, this diagnosis was right and the remaining work is the static shell for
-FCP. If it stays near 20s, the diagnosis was wrong and the filmstrip needs
-reading frame by frame rather than reasoned about.
+**The profiled browser was full of extensions.** The trace contains a 1.7MB
+MetaMask content script, Loom, an ad blocker and a reader-mode extension.
+Third-party attribution gives 357ms of main-thread time to MetaMask alone, and
+1,149ms of CPU is "Unattributable". Lighthouse's own run warning asks for an
+incognito profile, and the IndexedDB warning it reports comes from those
+extensions — this app uses no IndexedDB.
 
-Do not stack another speculative change on top of an unmeasured one.
+**The two runs may not be the same page.** This trace is of `/`. The first-pass
+audit analysed `/r/[id]`, the heaviest route. Comparing TBT across them is not
+comparing anything.
+
+So the honest position is that TBT is unmeasured on a clean profile. Re-run in
+incognito before treating 930ms as real.
+
+---
+
+## What is verified, and what is not
+
+**Verified:** lint, typecheck, 134 tests, production build. Speed Index 20.8s →
+7.7s is a real before/after measurement.
+
+**Not verified:** the blank-screen fix, the session dedup and the two
+accessibility fixes all landed after this trace. Their effect is reasoned, not
+observed.
+
+---
+
+## Next
+
+1. **Re-run Lighthouse in incognito**, on `/` and on `/r/[id]` separately.
+   Expect FCP and Speed Index to fall sharply — the streaming change removes
+   3.4s from the critical path — and expect the accessibility failures to clear.
+2. Only then judge TBT. If it is still high on a clean profile, the target is
+   `/r/[id]`, and `PERFORMANCE_AUDIT.md` already names the work: mount only the
+   selected tab.
+3. Legacy-JavaScript polyfills cost 11.7 kB in one chunk (`Array.prototype.at`,
+   `Object.hasOwn`, `String.prototype.trimStart` and others). A `browserslist`
+   narrowed to modern targets removes them. Small, safe, unmeasured.
