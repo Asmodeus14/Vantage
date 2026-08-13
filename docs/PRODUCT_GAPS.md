@@ -65,7 +65,19 @@ runs for SQLite. This would also unlock testing `PostgresReportStore` and
 in-memory twins — the exact gap that let the `bindparam` bug reach live
 Postgres during this audit.
 
-### 2. Gemini usage is unmeasured
+### 2. `quality/long-function` does not distinguish a component from a function
+
+It reports 24 React components on a real frontend. They *are* long — the
+measurement is correct — but most of those lines are JSX, so the finding's own
+rationale ("many branches, hard to cover with tests") does not apply to them.
+
+A true measurement with a wrong explanation still costs the reader's trust.
+
+**Fix:** either a separate threshold for components whose body is mostly
+markup, or a rationale that says what long components actually cost. This is a
+rule-design decision rather than a bug, which is why it was not guessed at.
+
+### 3. Gemini usage is unmeasured
 
 Context is bounded and prompts are server-assembled, so cost is structurally
 controlled — but nothing records what a call actually costs. "Token efficient"
@@ -75,7 +87,7 @@ is an argument, not a measurement.
 metrics platform, no new dependency; enough to see whether the 160-line window
 is the right size.
 
-### 3. Range-declared Python projects are not scanned
+### 4. Range-declared Python projects are not scanned
 
 An exact version is required to query OSV. Python reads `poetry.lock` and `==`
 pins. A project declaring only `fastapi>=0.115` gets its dependencies listed but
@@ -83,7 +95,7 @@ no advisories. Measured on the API's own repository: 18 collected, 0 resolvable.
 
 **Fix:** parse `Pipfile.lock` and `uv.lock`, and `pip freeze`-style requirements.
 
-### 4. Sign-in is unverified in Safari and Firefox strict mode
+### 5. Sign-in is unverified in Safari and Firefox strict mode
 
 The consent step needs a human. This is the one failure mode that passes every
 Chrome test, because the first-party cookie design exists specifically to
