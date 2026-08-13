@@ -38,10 +38,25 @@ propose a patch, scoped to that finding only.
 | `react/array-index-key` | Index used as a key. |
 | `react/dangerously-set-inner-html` | XSS surface, flagged for review. |
 | `quality/long-file`, `quality/long-function`, `quality/deep-nesting`, `quality/todo-markers` | Structural metrics measured over source with comments and string literals removed. |
+| `python/mutable-default-argument` | `def f(items=[])` — one list shared by every call. Reads wrapped signatures, so code formatted by black is not missed. |
+| `python/bare-except` | `except:` also swallows Ctrl-C and shutdown. |
+| `python/subprocess-shell` | `shell=True` and `os.system` — interpolated values become shell syntax. |
+| `python/unsafe-deserialisation` | `pickle.loads`, `yaml.load` without a Loader, `marshal.loads`. |
 | `config/*` | Linter, tests, CI, TypeScript `strict`, README — each gated on the detected stack. |
 
 Every finding carries a **confidence** level. Heuristic matches say so rather
 than presenting a guess as a certainty.
+
+Rules are gated on the detected stack, so a Python project is never told it is
+missing ESLint. The security rules skip test files — a suite exercising
+`pickle.loads` on purpose is not a vulnerability, and reporting it seven times
+is how a check teaches people to ignore its whole category.
+
+**Dependency scanning needs an exact version.** npm reads the lockfile; Python
+reads `poetry.lock`, or `==` pins in `requirements.txt`/`pyproject.toml`. A
+project declaring only ranges (`fastapi>=0.115`) has its dependencies listed but
+not scanned, because a range cannot be resolved without the index and guessing
+would report advisories for versions nobody installed.
 
 ## What changed since last time
 
@@ -185,7 +200,7 @@ breaker settings are documented in
 ## Testing
 
 ```bash
-cd vantage-backend  && python -m pytest -q       # 259 tests
+cd vantage-backend  && python -m pytest -q       # 302 tests
 cd vantage-frontend && npm run test              # 131 tests
                        npm run typecheck
                        npm run lint
