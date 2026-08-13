@@ -18,27 +18,23 @@ constrained way, not aspirational marketing.
 | **Some findings still churn between runs** | Rules emitting several findings per file with nothing to tell them apart — `react/array-index-key`, `react/missing-list-key` — key on `line`, so inserting code above one reads as resolved-plus-new. Renaming a file has the same effect for every rule. | Accepted, not fixed: there is no natural discriminator, and rename detection is a larger change. |
 | **A signed-in user's ZIP upload is attributed anonymously** | The upload posts directly to the API to clear the serverless body cap, so it cannot carry the session cookie. | A single-use upload ticket issued by the frontend. |
 | **Sign-in is untested against real GitHub** | The consent step needs a human. The third-party-cookie failure mode passes every Chrome test. | Verify in Safari and Firefox strict mode. |
+| **History shows unadjusted scores** | A report page shows the score with accepted findings excluded; the History list and trend chart show it as analysed, because summaries are built from indexed columns and never deserialise the payload. The same report can therefore show two numbers in two places. | Persist the effective score, recomputing across a repository's reports when a suppression changes. |
 
 ## Next features, in rough value order
 
-1. **Baselines.** Mark existing findings as accepted so a report shows only what
-   is new — the thing that makes a scanner usable on a legacy codebase. Now
-   unblocked: fingerprints are stable, so a suppression survives a re-run.
-   Applied at read time rather than analysis time, so unsuppressing restores the
-   finding without re-analysing.
-2. **File viewer with the finding gutter.** Turns "line 47" into "here is line
+1. **File viewer with the finding gutter.** Turns "line 47" into "here is line
    47 in context". Requires persisting blobs, which also fixes *Propose fix*
    returning `INSUFFICIENT_CONTEXT` on whole-file findings.
-3. **Reachability for transitive advisories.** The difference between "your
+2. **Reachability for transitive advisories.** The difference between "your
    lockfile mentions a vulnerable package" and "your code can actually reach it"
    is most of the signal-to-noise problem in dependency scanning.
-4. **PR/CI mode.** A GitHub Action posting findings as review comments on
+3. **PR/CI mode.** A GitHub Action posting findings as review comments on
    changed lines. The engine already produces exactly the right shape, and the
    delta gives it the "only comment on what this PR introduced" behaviour that
    makes such a bot tolerable.
-5. **Per-ecosystem rule packs.** Python (`requirements`/`pyproject` + PyPI
+4. **Per-ecosystem rule packs.** Python (`requirements`/`pyproject` + PyPI
    advisories) is the obvious next one.
-6. **Streaming AI responses.** The provider already supports `stream()`; the
+5. **Streaming AI responses.** The provider already supports `stream()`; the
    endpoint returns complete responses. Streaming would make *Explain* feel
    immediate.
 
@@ -47,6 +43,9 @@ constrained way, not aspirational marketing.
 - **Re-run and compare.** Findings carry a rule-supplied `fingerprint`, and each
   report stores a `delta` against the previous analysis of the same repository.
   See "Finding identity" in the backend architecture document.
+- **Baselines.** Findings can be accepted, per repository, so a report stops
+  reporting what someone has already decided to live with. See "Accepted
+  findings".
 
 ## Deliberately not planned
 

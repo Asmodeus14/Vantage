@@ -59,6 +59,9 @@ function report(
     activity,
     truncated: false,
     rule_ids: [],
+    suppressed_count: 0,
+    effective_score: null,
+    can_suppress: false,
     delta: null,
   };
 }

@@ -46,6 +46,12 @@ export interface Finding {
   snippet_start_line: number | null;
   remediation: string | null;
   references: string[];
+  /**
+   * Accepted by the report's owner. Set when the report is read, never stored,
+   * so restoring a finding takes effect without re-analysing.
+   */
+  suppressed: boolean;
+  suppression_reason: string | null;
 }
 
 export interface LanguageStat {
@@ -200,6 +206,19 @@ export interface Report {
   truncated: boolean;
   /** Every rule that ran, including those that found nothing. */
   rule_ids: string[];
+  /** How many findings the owner has accepted. Always shown, never silent. */
+  suppressed_count: number;
+  /**
+   * Whether *this viewer* may accept findings here. Unlike everything else on
+   * the report this varies by caller, so the UI can omit a control that would
+   * only ever be refused.
+   */
+  can_suppress: boolean;
+  /**
+   * The score recomputed with suppressed findings excluded. Null when nothing
+   * is suppressed. `score` is always what the analysis produced.
+   */
+  effective_score: Score | null;
   /**
    * Absent on a first analysis, on uploads, and when no comparable earlier
    * report is visible to this owner.

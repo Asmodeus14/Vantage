@@ -55,6 +55,19 @@ that merely look different.
 The comparison is computed when the report is created and stored on it, so a
 shared report keeps saying what it said when you shared it.
 
+## Accepting findings
+
+Some findings are real and you are going to live with them anyway — a key in a
+test fixture, a long file nobody is going to split this quarter. Signed in, you
+can mark one **Not an issue** with a reason, and it stops appearing on every
+future analysis of that repository.
+
+It is keyed on the finding's fingerprint rather than the report, so it survives
+re-runs; it is never silent, since the count stays on screen with a toggle to
+reveal what was accepted; and it is reversible without re-analysing. The score
+is shown both ways — adjusted, with the analysed figure beside it — because a
+number that quietly absorbed its own exceptions could not be checked.
+
 ## Scoring
 
 A weighted, saturating score with a per-category breakdown the UI explains.
@@ -165,8 +178,8 @@ breaker settings are documented in
 ## Testing
 
 ```bash
-cd vantage-backend  && python -m pytest -q       # 198 tests
-cd vantage-frontend && npm run test              # 111 tests
+cd vantage-backend  && python -m pytest -q       # 214 tests
+cd vantage-frontend && npm run test              # 118 tests
                        npm run typecheck
                        npm run lint
                        npm run build

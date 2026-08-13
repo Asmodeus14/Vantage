@@ -19,6 +19,16 @@ vi.mock("@/components/report/ai-actions", () => ({
   AiActions: () => null,
 }));
 
+/**
+ * Stubbed for the same reason, plus one of its own: it calls `useRouter`, which
+ * throws outside an app-router context. What is under test here is the panel's
+ * filtering of accepted findings, not the control that creates them — that is
+ * `suppress-action.test.tsx`.
+ */
+vi.mock("@/components/report/suppress-action", () => ({
+  SuppressAction: () => null,
+}));
+
 function finding(overrides: Partial<Finding> = {}): Finding {
   const merged: Finding = {
     id: "f1",
@@ -36,6 +46,8 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     snippet_start_line: null,
     remediation: null,
     references: [],
+    suppressed: false,
+    suppression_reason: null,
     ...overrides,
   };
   // Derived from the id so distinct findings get distinct fingerprints without
@@ -88,6 +100,9 @@ function report(findings: Finding[], delta: Report["delta"] = null): Report {
     activity: null,
     truncated: false,
     rule_ids: ["test/rule"],
+    suppressed_count: 0,
+    effective_score: null,
+    can_suppress: false,
     delta,
   };
 }
@@ -251,6 +266,34 @@ describe("FindingsPanel", () => {
     // A control that can only ever match nothing reads as a bug in the report.
     render(<FindingsPanel report={report([finding()])} />);
     expect(screen.queryByRole("button", { name: /^New/ })).not.toBeInTheDocument();
+  });
+
+  it("hides accepted findings but never silently", async () => {
+    const user = userEvent.setup();
+    const accepted = finding({
+      id: "a",
+      title: "Known fixture key",
+      suppressed: true,
+      suppression_reason: "test fixture",
+    });
+    const live = finding({ id: "b", title: "Real problem" });
+
+    const base = report([accepted, live]);
+    render(<FindingsPanel report={{ ...base, suppressed_count: 1 }} />);
+
+    expect(screen.queryByText("Known fixture key")).not.toBeInTheDocument();
+    expect(screen.getByText("Real problem")).toBeInTheDocument();
+
+    // The count is the thing that keeps this trustworthy: findings that vanish
+    // without a trace make the whole feature suspect.
+    const toggle = screen.getByRole("button", { name: /1 accepted/ });
+    await user.click(toggle);
+    expect(screen.getByText("Known fixture key")).toBeInTheDocument();
+  });
+
+  it("says nothing about acceptance when nothing is accepted", async () => {
+    render(<FindingsPanel report={report([finding()])} />);
+    expect(screen.queryByRole("button", { name: /accepted/ })).not.toBeInTheDocument();
   });
 
   it("surfaces confidence when a finding is heuristic", async () => {

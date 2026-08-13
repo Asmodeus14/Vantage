@@ -211,6 +211,27 @@ The caveat about rules added between runs is shown only when such a rule
 actually produced a new finding. A caveat displayed when it does not apply
 teaches people to skip it for the times it does.
 
+### Accepted findings
+
+`suppress-action.tsx` renders only when `report.can_suppress` — the one field
+that varies by viewer. A control that can only ever be refused is worse than an
+absent one, because the reason it would fail ("this report isn't yours") is not
+something a button can usefully say.
+
+Accepted findings are hidden from the list by default, which is the point, but
+the count is **always on screen** with a toggle beside it. Findings that vanish
+without a trace are what make a suppression feature untrustworthy. When shown
+they are dimmed rather than styled as resolved: someone decided to live with it,
+which is not the same as it being gone.
+
+The header leads with `effective_score` and keeps the analysed score beside it
+("72 before 3 accepted"). Replacing the number outright would make it
+unfalsifiable.
+
+After accepting or restoring, the component calls `router.refresh()` rather than
+patching local state. The server recomputes the score and the counts, and
+guessing at them client-side is how the header and the list end up disagreeing.
+
 Partial results always carry the reason verbatim from the API rather than a
 generic "unavailable".
 

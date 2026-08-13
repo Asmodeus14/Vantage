@@ -136,6 +136,9 @@ export function ReportView({
     [writeParams],
   );
 
+  /** What the analysis produced, unless the owner has accepted some of it. */
+  const effective = report.effective_score ?? report.score;
+
   const counts: Partial<Record<TabId, number>> = {
     findings: report.findings.length,
     dependencies: report.dependencies.length,
@@ -195,20 +198,32 @@ export function ReportView({
             </div>
           </div>
 
+          {/*
+            The adjusted score leads when findings have been accepted, since it
+            is the one describing the code as its owner has chosen to see it —
+            but the analysed score stays on screen. Replacing it outright would
+            make the number unfalsifiable.
+          */}
           <div className="flex items-baseline gap-2">
             <span
               className={cn(
                 "tabular text-3xl font-semibold tracking-tight",
-                scoreColour(report.score.value),
+                scoreColour(effective.value),
               )}
             >
-              {report.score.value}
+              {effective.value}
             </span>
             <div className="text-xs text-fg-subtle">
               <div className="font-medium text-fg-muted">
-                Grade {report.score.grade}
+                Grade {effective.grade}
               </div>
-              <div>out of 100</div>
+              {report.effective_score ? (
+                <div>
+                  {report.score.value} before {report.suppressed_count} accepted
+                </div>
+              ) : (
+                <div>out of 100</div>
+              )}
             </div>
           </div>
         </div>

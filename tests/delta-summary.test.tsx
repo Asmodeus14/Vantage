@@ -22,6 +22,8 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     snippet_start_line: null,
     remediation: null,
     references: [],
+    suppressed: false,
+    suppression_reason: null,
     ...overrides,
   };
   return { ...merged, fingerprint: merged.fingerprint || `fp-${merged.id}` };
@@ -81,6 +83,9 @@ function report(findings: Finding[], d: FindingDelta | null): Report {
     activity: null,
     truncated: false,
     rule_ids: ["test/rule"],
+    suppressed_count: 0,
+    effective_score: null,
+    can_suppress: false,
     delta: d,
   };
 }

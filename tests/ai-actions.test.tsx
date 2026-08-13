@@ -21,6 +21,8 @@ const finding: Finding = {
   snippet_start_line: 4,
   remediation: null,
   references: [],
+  suppressed: false,
+  suppression_reason: null,
 };
 
 function mockHealth(ai: Record<string, unknown>) {

@@ -5,6 +5,7 @@ import { CheckCircle2, ChevronRight, ExternalLink, Search, X } from "lucide-reac
 
 import { CodeSnippet } from "@/components/report/code-snippet";
 import { AiActions } from "@/components/report/ai-actions";
+import { SuppressAction } from "@/components/report/suppress-action";
 import { SeverityBadge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Kbd } from "@/components/ui/input";
@@ -48,6 +49,12 @@ export function FindingsPanel({
   const [severities, setSeverities] = React.useState<Set<Severity>>(new Set());
   const [category, setCategory] = React.useState<Category | "all">("all");
   const [onlyNew, setOnlyNew] = React.useState(initialOnlyNew);
+  /**
+   * Accepted findings are hidden by default — that is what makes the list
+   * readable on a codebase that already exists — but never *silently*: the
+   * count is always on screen with a way to reveal them.
+   */
+  const [showSuppressed, setShowSuppressed] = React.useState(false);
   const [expanded, setExpanded] = React.useState<string | null>(
     report.findings[0]?.id ?? null,
   );
@@ -103,6 +110,7 @@ export function FindingsPanel({
     const needle = query.trim().toLowerCase();
     return report.findings
       .filter((finding) => {
+        if (finding.suppressed && !showSuppressed) return false;
         if (severities.size > 0 && !severities.has(finding.severity)) return false;
         if (category !== "all" && finding.category !== category) return false;
         if (onlyNew && !newPrints.has(finding.fingerprint)) return false;
@@ -119,7 +127,15 @@ export function FindingsPanel({
           compareSeverity(a.severity, b.severity) ||
           (a.file ?? "").localeCompare(b.file ?? ""),
       );
-  }, [report.findings, query, severities, category, onlyNew, newPrints]);
+  }, [
+    report.findings,
+    query,
+    severities,
+    category,
+    onlyNew,
+    newPrints,
+    showSuppressed,
+  ]);
 
   // `/` focuses search; j/k move through the list — familiar from pagers and
   // review tools. None of these shadow a browser binding.
@@ -285,12 +301,33 @@ export function FindingsPanel({
         )}
       </div>
 
-      <div className="flex items-center justify-between text-xs text-fg-subtle">
-        <span>
-          {visible.length} of {report.findings.length}{" "}
-          {pluralise(report.findings.length, "finding")}
+      <div className="flex items-center justify-between gap-3 text-xs text-fg-subtle">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>
+            {visible.length} of {report.findings.length}{" "}
+            {pluralise(report.findings.length, "finding")}
+          </span>
+          {/*
+            Always rendered when anything is accepted, whether or not they are
+            currently shown. Findings hidden without a trace is the failure
+            mode that makes a suppression feature untrustworthy.
+          */}
+          {report.suppressed_count > 0 && (
+            <>
+              <span aria-hidden>·</span>
+              <button
+                type="button"
+                onClick={() => setShowSuppressed((current) => !current)}
+                aria-pressed={showSuppressed}
+                className="rounded underline decoration-border-strong underline-offset-4 transition-colors duration-(--duration-fast) hover:text-fg hover:decoration-fg"
+              >
+                {report.suppressed_count} accepted
+                {showSuppressed ? " (showing)" : ""}
+              </button>
+            </>
+          )}
         </span>
-        <span className="hidden sm:inline">
+        <span className="hidden shrink-0 sm:inline">
           <Kbd>j</Kbd> <Kbd>k</Kbd> to move
         </span>
       </div>
@@ -347,7 +384,15 @@ function FindingRow({
   const panelId = `finding-panel-${finding.id}`;
 
   return (
-    <li data-finding={finding.id} className={cn(expanded && "bg-surface-raised")}>
+    <li
+      data-finding={finding.id}
+      className={cn(
+        expanded && "bg-surface-raised",
+        // Recedes rather than disappears. It is still a finding; someone
+        // decided to live with it.
+        finding.suppressed && "opacity-60",
+      )}
+    >
       <button
         type="button"
         onClick={onToggle}
@@ -375,6 +420,12 @@ function FindingRow({
             {isNew && (
               <>
                 <span className="font-medium text-fg-muted">New</span>
+                <span aria-hidden>·</span>
+              </>
+            )}
+            {finding.suppressed && (
+              <>
+                <span className="font-medium text-fg-muted">Accepted</span>
                 <span aria-hidden>·</span>
               </>
             )}
@@ -448,6 +499,12 @@ function FindingRow({
           </div>
 
           <AiActions finding={finding} reportId={report.id} />
+
+          <SuppressAction
+            finding={finding}
+            reportId={report.id}
+            canSuppress={report.can_suppress}
+          />
         </div>
       )}
     </li>
