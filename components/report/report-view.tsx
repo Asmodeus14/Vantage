@@ -42,7 +42,6 @@ export function ReportView({
   history?: ReportSummary[];
 }) {
   const searchParams = useSearchParams();
-  const [focusFile, setFocusFile] = React.useState<string>("");
 
   // Activity only exists for repositories whose history could be read, so the
   // tab is absent rather than present-and-empty.
@@ -58,19 +57,23 @@ export function ReportView({
       : "overview";
 
   /**
-   * The tab lives in the URL so a link to a specific view is shareable and
-   * survives a refresh — it was local state, and both were lost.
+   * The tab and the findings filter live in the URL so a link to a specific
+   * view is shareable and survives a refresh — both were local state, and both
+   * were lost.
    *
    * `history.replaceState` rather than `router.replace`: this route is
    * `force-dynamic`, so a router navigation would round-trip to the server to
    * re-render output that has not changed. Next 15 keeps `useSearchParams` in
    * sync with the native history API.
+   *
+   * Read from `window.location` rather than the `searchParams` snapshot: the
+   * two writers below would otherwise each overwrite the other's param from a
+   * stale closure.
    */
-  const select = React.useCallback(
-    (next: TabId) => {
-      const params = new URLSearchParams(Array.from(searchParams.entries()));
-      if (next === "overview") params.delete("tab");
-      else params.set("tab", next);
+  const writeParams = React.useCallback(
+    (mutate: (params: URLSearchParams) => void) => {
+      const params = new URLSearchParams(window.location.search);
+      mutate(params);
       const query = params.toString();
       window.history.replaceState(
         null,
@@ -78,8 +81,43 @@ export function ReportView({
         query ? `${window.location.pathname}?${query}` : window.location.pathname,
       );
     },
-    [searchParams],
+    [],
   );
+
+  const select = React.useCallback(
+    (next: TabId) => {
+      writeParams((params) => {
+        if (next === "overview") params.delete("tab");
+        else params.set("tab", next);
+      });
+    },
+    [writeParams],
+  );
+
+  /**
+   * The findings filter, mirrored from the panel so it can reach the URL. The
+   * param is `q`, not `file`: the filter matches title, description and rule id
+   * as well as path, and the Activity hand-off is only its most common source.
+   */
+  const [filter, setFilter] = React.useState(() => searchParams.get("q") ?? "");
+
+  /**
+   * Debounced, because this fires on every keystroke and `replaceState` is
+   * rate-limited — Safari throws after roughly 100 calls in 30 seconds. Tab
+   * selection stays immediate; only the filter waits.
+   */
+  React.useEffect(() => {
+    if (filter === (new URLSearchParams(window.location.search).get("q") ?? "")) {
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      writeParams((params) => {
+        if (filter) params.set("q", filter);
+        else params.delete("q");
+      });
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [filter, writeParams]);
 
   const counts: Partial<Record<TabId, number>> = {
     findings: report.findings.length,
@@ -210,7 +248,11 @@ export function ReportView({
             />
           </Tabs.Content>
           <Tabs.Content value="findings">
-            <FindingsPanel report={report} initialQuery={focusFile} />
+            <FindingsPanel
+              report={report}
+              initialQuery={filter}
+              onQueryChange={setFilter}
+            />
           </Tabs.Content>
           <Tabs.Content value="dependencies">
             <DependenciesPanel report={report} />
@@ -222,7 +264,7 @@ export function ReportView({
                 onSelectFile={(file) => {
                   // Hand the path to the findings filter, which already
                   // matches on file as well as title and rule id.
-                  setFocusFile(file);
+                  setFilter(file);
                   select("findings");
                 }}
               />

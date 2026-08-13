@@ -1,9 +1,23 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { FindingsPanel } from "@/components/report/findings-panel";
 import type { Finding, Report } from "@/lib/types";
+
+/**
+ * Every expanded finding mounts `AiActions`, which fetches `/api/health` on
+ * mount and sets state when it resolves — after the synchronous render has
+ * returned, so React reported an unwrapped update on every test in this file.
+ *
+ * Stubbed rather than flushed. Nothing here tests AI actions; that is
+ * `ai-actions.test.tsx`'s job, and mounting the real component only coupled
+ * these tests to an unrelated network call. A warning present on every run is
+ * a warning nobody reads, and it would hide a real one.
+ */
+vi.mock("@/components/report/ai-actions", () => ({
+  AiActions: () => null,
+}));
 
 function finding(overrides: Partial<Finding> = {}): Finding {
   return {
@@ -72,27 +86,15 @@ function report(findings: Finding[]): Report {
   };
 }
 
-beforeEach(() => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        ai: { configured: false, available: false, state: "unconfigured", reason: "no key" },
-      }),
-    }),
-  );
-});
-
 describe("FindingsPanel", () => {
-  it("shows a purposeful empty state when there are no findings", () => {
+  it("shows a purposeful empty state when there are no findings", async () => {
     render(<FindingsPanel report={report([])} />);
     expect(screen.getByText("No findings")).toBeInTheDocument();
     // Explains *why* it's empty rather than just saying "no data".
     expect(screen.getByText(/every rule that applied/i)).toBeInTheDocument();
   });
 
-  it("orders findings by severity, most urgent first", () => {
+  it("orders findings by severity, most urgent first", async () => {
     render(
       <FindingsPanel
         report={report([
@@ -162,7 +164,7 @@ describe("FindingsPanel", () => {
     expect(screen.queryByText("Unused import")).not.toBeInTheDocument();
   });
 
-  it("marks a finding without a location as project-wide rather than faking a path", () => {
+  it("marks a finding without a location as project-wide rather than faking a path", async () => {
     render(
       <FindingsPanel
         report={report([finding({ file: null, line: null, title: "No tests" })])}
@@ -190,7 +192,29 @@ describe("FindingsPanel", () => {
     expect(screen.getByText("Second detail.")).toBeInTheDocument();
   });
 
-  it("surfaces confidence when a finding is heuristic", () => {
+  it("reports every filter change so the view can put it in the URL", async () => {
+    const user = userEvent.setup();
+    const onQueryChange = vi.fn();
+    render(
+      <FindingsPanel
+        report={report([finding()])}
+        initialQuery="src/a.ts"
+        onQueryChange={onQueryChange}
+      />,
+    );
+
+    // The seeded value came from outside; echoing it straight back would loop.
+    expect(onQueryChange).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText("Filter findings"), "!");
+    expect(onQueryChange).toHaveBeenLastCalledWith("src/a.ts!");
+
+    // Clearing must reach the URL too, or a stale `?q=` outlives the filter.
+    await user.click(screen.getByRole("button", { name: /clear filters/i }));
+    expect(onQueryChange).toHaveBeenLastCalledWith("");
+  });
+
+  it("surfaces confidence when a finding is heuristic", async () => {
     render(
       <FindingsPanel
         report={report([finding({ confidence: "low", title: "Maybe an issue" })])}

@@ -24,6 +24,7 @@ import type { Category, Finding, Report, Severity } from "@/lib/types";
 export function FindingsPanel({
   report,
   initialQuery = "",
+  onQueryChange,
 }: {
   report: Report;
   /**
@@ -32,6 +33,11 @@ export function FindingsPanel({
    * mounted while another tab is showing.
    */
   initialQuery?: string;
+  /**
+   * Fired when the user changes the filter, so the containing view can put it
+   * in the URL. Optional: the panel works standalone without it.
+   */
+  onQueryChange?: (query: string) => void;
 }) {
   const [query, setQuery] = React.useState(initialQuery);
   const [severities, setSeverities] = React.useState<Set<Severity>>(new Set());
@@ -41,10 +47,22 @@ export function FindingsPanel({
   );
 
   // An empty `initialQuery` must not clobber what the user has typed, so this
-  // only ever applies a real incoming value.
+  // only ever applies a real incoming value. It deliberately does not call
+  // `onQueryChange` — the value came from outside, and echoing it back would
+  // be a loop.
   React.useEffect(() => {
     if (initialQuery) setQuery(initialQuery);
   }, [initialQuery]);
+
+  /** Every user-driven filter change goes through here, so none escapes the URL. */
+  const updateQuery = React.useCallback(
+    (next: string) => {
+      setQuery(next);
+      onQueryChange?.(next);
+    },
+    [onQueryChange],
+  );
+
   const searchRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLUListElement>(null);
 
@@ -146,7 +164,7 @@ export function FindingsPanel({
           <Input
             ref={searchRef}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => updateQuery(event.target.value)}
             placeholder="Filter by title, file or rule…"
             className="h-8 pl-8 pr-16 text-xs"
             aria-label="Filter findings"
@@ -206,7 +224,7 @@ export function FindingsPanel({
             variant="ghost"
             size="sm"
             onClick={() => {
-              setQuery("");
+              updateQuery("");
               setSeverities(new Set());
               setCategory("all");
             }}
@@ -238,7 +256,7 @@ export function FindingsPanel({
                 variant="secondary"
                 size="sm"
                 onClick={() => {
-                  setQuery("");
+                  updateQuery("");
                   setSeverities(new Set());
                   setCategory("all");
                 }}

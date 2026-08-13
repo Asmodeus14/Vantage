@@ -74,10 +74,20 @@ lib/
 Note the `api/` directory is **not** purely a proxy: the OAuth callback performs
 a code exchange with GitHub and sets a cookie.
 
-The report's active tab lives in a `?tab=` search param, updated through
-`window.history.replaceState` rather than a router navigation: the route is
-`force-dynamic`, so `router.replace` would round-trip to the server to
-re-render output that has not changed.
+The report's active tab (`?tab=`) and findings filter (`?q=`) live in search
+params, updated through `window.history.replaceState` rather than a router
+navigation: the route is `force-dynamic`, so `router.replace` would round-trip
+to the server to re-render output that has not changed.
+
+`?q=` is named for what it does — the filter matches title, description, file
+and rule id — even though the Activity→Findings hand-off, which passes a file
+path, is its most common source. Writes are debounced by 400ms because the
+filter changes on every keystroke and `replaceState` is rate-limited (Safari
+throws after roughly 100 calls in 30 seconds). Tab selection is not debounced.
+
+`FindingsPanel` keeps its own filter state and reports changes upward rather
+than being controlled from the URL, so it still works standalone — which is how
+its tests render it.
 
 ### Navigation feedback
 

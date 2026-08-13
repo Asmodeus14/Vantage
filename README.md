@@ -153,8 +153,8 @@ breaker settings are documented in
 ## Testing
 
 ```bash
-cd vantage-backend  && python -m pytest -q       # 172 tests
-cd vantage-frontend && npm run test              # 101 tests
+cd vantage-backend  && python -m pytest -q       # 173 tests
+cd vantage-frontend && npm run test              # 102 tests
                        npm run typecheck
                        npm run lint
                        npm run build
