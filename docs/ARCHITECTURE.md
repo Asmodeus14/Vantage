@@ -302,9 +302,9 @@ grants read *and write* to every private repository on the account.
 
 ## Constraints
 
-- **A signed-in user's ZIP upload is still attributed anonymously.** The upload
-  posts directly to the API to clear the serverless body cap, so it cannot carry
-  the session cookie. A single-use upload ticket is the fix; it is not built.
+- **The repository picker is not built.** A signed-in user still pastes a URL,
+  even though the API can list the repositories they can reach.
+  `@radix-ui/react-popover` is installed and unused, for exactly this.
 - **Sign-in has not been exercised against real GitHub.** The consent step needs
   a human. The Safari and Firefox strict-mode check is the one most likely to
   catch a real break.

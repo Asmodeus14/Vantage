@@ -86,6 +86,20 @@ export function AnalyseForm() {
     const form = new FormData();
     form.append("file", selected);
 
+    /*
+      The upload goes straight to the API, so it cannot carry the session
+      cookie — it is HttpOnly and first-party to this origin. Without a ticket
+      a signed-in user's upload is recorded as anonymous and never appears in
+      their History.
+
+      Best-effort: signed out, this returns 204 and the upload proceeds
+      unattributed, which is a supported flow rather than a failure.
+    */
+    const ticket = await fetch("/api/auth/upload-ticket", { method: "POST" })
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null);
+    if (ticket?.ticket) form.append("ticket", ticket.ticket);
+
     try {
       // Posted straight to the API: serverless request bodies are capped at a
       // few megabytes, far below what a project archive needs.

@@ -16,7 +16,6 @@ constrained way, not aspirational marketing.
 | **Transitive dependency noise** | Transitive advisories are reported only at high/critical and downgraded one level, which is a heuristic compromise rather than reachability analysis. | Parse the lockfile dependency graph to determine whether the vulnerable path is actually reachable. |
 | **Rate limiting is per-IP, in-memory** | Resets on restart and is per-instance. Signed-in users share the anonymous bucket. | Redis-backed limiter, keyed on the session when present. |
 | **Some findings still churn between runs** | Rules emitting several findings per file with nothing to tell them apart — `react/array-index-key`, `react/missing-list-key` — key on `line`, so inserting code above one reads as resolved-plus-new. Renaming a file has the same effect for every rule. | Accepted, not fixed: there is no natural discriminator, and rename detection is a larger change. |
-| **A signed-in user's ZIP upload is attributed anonymously** | The upload posts directly to the API to clear the serverless body cap, so it cannot carry the session cookie. | A single-use upload ticket issued by the frontend. |
 | **Sign-in is untested against real GitHub** | The consent step needs a human. The third-party-cookie failure mode passes every Chrome test. | Verify in Safari and Firefox strict mode. |
 
 ## Next features, in rough value order
@@ -39,6 +38,9 @@ constrained way, not aspirational marketing.
 - **Re-run and compare.** Findings carry a rule-supplied `fingerprint`, and each
   report stores a `delta` against the previous analysis of the same repository.
   See "Finding identity" in the backend architecture document.
+- **Attributed uploads.** A signed-in user's ZIP upload now carries a
+  short-lived Fernet ticket, so it lands in their History instead of being
+  recorded as anonymous.
 - **Wider AI context.** *Propose fix* reads a 160-line window of the real file
   through `SourceProvider`, centred on the finding, falling back to the snippet
   when source is unreachable. Verified producing correct dependency-bump diffs
