@@ -29,7 +29,10 @@ run. People stop reading the list, which is the moment the tool stops working.
 
 Vantage gives findings an identity that survives an edit. Analyse a repository
 twice and the second report says what actually changed: what you fixed, what
-appeared, what you had already accepted. Every finding links to its line in a
+appeared, what you had already accepted — and, uniquely, what came back. A
+finding you fixed once and have since reintroduced is reported as **reopened**
+rather than new, because "you added this" and "your fix did not hold" call for
+different reactions. Every finding links to its line in a
 real file view, and with an API key configured you can ask a model to explain it
 or propose a patch — scoped to that one finding, returned as a diff you review.
 
@@ -52,10 +55,10 @@ request saying what that branch changed.
 Captured from the live instance, unedited.
 
 **The report.** [`expressjs/express`](https://github.com/expressjs/express) on
-`master`, compared against an earlier run of the `4.19.0` tag. Score, the
-weakest category, the trend across all seven analyses, and — the point of the
-product — the line that no first-time scan can produce:
-*51 findings resolved, 1 new, 10 unchanged*.
+`master`, compared against a run of the `4.19.0` tag. The summary names what to
+do rather than which category scored worst, and underneath is the line no
+first-time scan can produce: *10 findings resolved, 10 unchanged* — and
+**1 reopened**, a problem fixed in an earlier analysis that has come back.
 
 ![Report overview](docs/screenshots/report-overview.png)
 
@@ -63,10 +66,12 @@ product — the line that no first-time scan can produce:
 to fix first rather than by severity alone, the offending line in context, how
 to fix it, and the three AI actions — each scoped to this one finding.
 
-Worth reading closely: `5 of 13 findings · 8 metrics`. Measurements like "this
+Worth reading closely. `5 of 13 findings · 8 metrics`: measurements like "this
 file is long" are real but not work, so they sit behind a count rather than
-burying the rest. And the private keys are recognised as TLS test fixtures —
-reported for confirmation, not as an incident, and kept out of the score.
+burying the rest. The private keys are recognised as TLS test fixtures —
+reported for confirmation, not as an incident, and kept out of the score. And
+every row is marked *Likely*, because the rules could not confirm them;
+findings they are sure about carry no label at all.
 
 ![Findings](docs/screenshots/findings.png)
 
@@ -95,9 +100,14 @@ your own repositories.
   assignments, with the value redacted everywhere it appears.
 - **Correctness bugs** in React and Python, and structural measurements (long
   files, deep nesting) taken with comments and string literals stripped out.
-- **Confidence on every finding.** A heuristic match says so instead of
-  presenting a guess as a certainty — and only proven findings can cap the
-  grade.
+- **Confidence on every finding, and it is on screen.** A finding the rules
+  could not confirm is labelled *Likely* or *Needs review*; only proven ones
+  can cap the grade or lead the summary. Confirmed findings are left unlabelled
+  — marking the norm turns a flag into decoration.
+- **Measured, not asserted.** `docs/DETECTION_BASELINE.md` in the API
+  repository records what the rules find across ten real repositories — four
+  deliberately vulnerable, six ordinary — including the false positives that
+  measurement found and the classes the rules do not attempt.
 
 ### Knowing what to fix first
 
@@ -114,9 +124,13 @@ your own repositories.
 
 ### Knowing whether it improved
 
-- **Re-run and compare.** The second report on a repository reports what was
-  resolved and what is new, using a fingerprint that survives a dependency
+- **Re-run and compare.** One click on a report re-analyses the same
+  repository at the same ref. The second report says what was resolved, what is
+  new, and what is unchanged, using a fingerprint that survives a dependency
   version bump, a changed line count, or code inserted above.
+- **Reopened findings.** A problem fixed in an earlier analysis and present
+  again is reported as reopened, not as new — detected across a window of ten
+  analyses, so a regression five pushes later is still recognised.
 - **Accept what you are living with.** Mark a finding *Not an issue* with a
   reason and it stops appearing on future runs of that repository — reversibly,
   and never silently: the count stays on screen with a toggle to reveal it.
@@ -136,7 +150,9 @@ your own repositories.
   line numbers.
 - **Comment on a pull request.** One consolidated comment saying what *that
   branch* changed, edited in place on every push rather than added to.
-- **Shareable reports.** A report has its own URL and survives a refresh.
+- **Shareable reports.** A report has its own URL, survives a refresh, and
+  renders as a preview card carrying the score and the severity split wherever
+  it is posted.
 - **Keyboard-first.** Command palette, filter focus, and next/previous finding.
 
 ### Running it
@@ -236,7 +252,7 @@ for the rule engine, finding identity and persistence.
 | Markdown | `react-markdown`, `remark-gfm`, `rehype-sanitize` | Renders model output; raw HTML is never parsed |
 | Highlighting | Shiki | Lazy-loaded, dual-theme code blocks |
 | Charts | — | Hand-rolled SVG in `lib/scale.ts` and `components/charts/` |
-| Testing | Vitest, Testing Library | 144 tests, run in CI on every push |
+| Testing | Vitest, Testing Library | 157 tests, run in CI on every push |
 | API | FastAPI · Python 3.12 · SQLAlchemy 2 | Separate repository |
 
 ## Getting started
@@ -394,6 +410,10 @@ Shipped:
 - [x] Prioritisation, and measurements separated from defects
 - [x] SARIF 2.1.0 export, validated against the OASIS schema
 - [x] One consolidated pull request comment, edited in place on re-runs
+- [x] Reopened findings — fixed once, back again, told apart from new
+- [x] Re-analyse a repository from its own report, at the same ref
+- [x] Preview cards for shared reports
+- [x] A measured detection baseline over a corpus of real applications
 
 Planned:
 
