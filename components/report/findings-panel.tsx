@@ -117,6 +117,17 @@ export function FindingsPanel({
     [report.delta],
   );
 
+  /**
+   * Findings that were fixed in an earlier analysis and have come back. Kept
+   * separate from `newPrints` rather than folded in, because the two say
+   * different things — one is "you added this", the other is "your fix did not
+   * hold" — and only the second is evidence about a previous decision.
+   */
+  const reopenedPrints = React.useMemo(
+    () => new Set(report.delta?.reopened ?? []),
+    [report.delta],
+  );
+
   const searchRef = React.useRef<HTMLInputElement>(null);
   const listRef = React.useRef<HTMLUListElement>(null);
 
@@ -141,7 +152,16 @@ export function FindingsPanel({
         ) {
           return false;
         }
-        if (onlyNew && !newPrints.has(finding.fingerprint)) return false;
+        // The "New" filter means "appeared since last time", which reopened
+        // findings also did — excluding them would hide the most urgent thing
+        // on the page behind a filter named for it.
+        if (
+          onlyNew &&
+          !newPrints.has(finding.fingerprint) &&
+          !reopenedPrints.has(finding.fingerprint)
+        ) {
+          return false;
+        }
         if (!needle) return true;
         return (
           finding.title.toLowerCase().includes(needle) ||
@@ -178,6 +198,7 @@ export function FindingsPanel({
     category,
     onlyNew,
     newPrints,
+    reopenedPrints,
     showSuppressed,
     showMetrics,
   ]);
@@ -453,6 +474,7 @@ export function FindingsPanel({
                 finding={finding}
                 report={report}
                 isNew={newPrints.has(finding.fingerprint)}
+                isReopened={reopenedPrints.has(finding.fingerprint)}
                 expanded={expanded === finding.id}
                 onToggle={() =>
                   setExpanded((current) => (current === finding.id ? null : finding.id))
@@ -485,6 +507,7 @@ function FindingRow({
   finding,
   report,
   isNew,
+  isReopened,
   expanded,
   onToggle,
 }: {
@@ -492,6 +515,7 @@ function FindingRow({
   report: Report;
   /** Appeared since the previous analysis of this repository. */
   isNew: boolean;
+  isReopened: boolean;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -531,11 +555,21 @@ function FindingRow({
               a second coloured pill on the same row would compete with the one
               that carries the urgency.
             */}
-            {isNew && (
+            {isReopened ? (
               <>
-                <span className="font-medium text-fg-muted">New</span>
+                {/* Coloured, unlike "New" — this is the one marker that is
+                    evidence about a previous fix rather than about the code,
+                    and it is rare enough that it can afford the emphasis. */}
+                <span className="font-medium text-high">Reopened</span>
                 <span aria-hidden>·</span>
               </>
+            ) : (
+              isNew && (
+                <>
+                  <span className="font-medium text-fg-muted">New</span>
+                  <span aria-hidden>·</span>
+                </>
+              )
             )}
             {finding.suppressed && (
               <>

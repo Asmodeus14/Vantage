@@ -28,10 +28,14 @@ export function DeltaSummary({
 
   const newCount = delta.new.length;
   const resolvedCount = delta.resolved.length;
+  // `?? []` because a report written before reopening was tracked has no such
+  // field. Treating that as zero is correct; crashing on it would be a silly
+  // way to lose an old report.
+  const reopenedCount = (delta.reopened ?? []).length;
 
   // Nothing changed at all. Worth saying — "settled" is an answer — but not
   // worth a section.
-  if (newCount === 0 && resolvedCount === 0) {
+  if (newCount === 0 && resolvedCount === 0 && reopenedCount === 0) {
     return (
       <p className="text-sm text-fg-muted">
         Nothing has changed since the analysis{" "}
@@ -62,6 +66,28 @@ export function DeltaSummary({
         )}
         {delta.unchanged > 0 && `, ${delta.unchanged} unchanged`}.
       </p>
+
+      {/*
+        Its own line, not another clause in the sentence above.
+
+        A reopened finding is the only one of the four states that says
+        something about the *fix* rather than about the code: this was dealt
+        with once and did not stay dealt with. That is the most actionable
+        thing on the page when it happens, and it happens rarely enough that
+        giving it a line of its own costs nothing the rest of the time.
+      */}
+      {reopenedCount > 0 && (
+        <p className="text-sm">
+          <span className="font-medium text-high">
+            {reopenedCount} {pluralise(reopenedCount, "finding")} reopened
+          </span>
+          <span className="text-fg-muted">
+            {" — "}
+            {reopenedCount === 1 ? "it was" : "they were"} fixed in an earlier
+            analysis and {reopenedCount === 1 ? "has" : "have"} come back.
+          </span>
+        </p>
+      )}
 
       <NewRuleCaption report={report} delta={delta} />
       <ResolvedList delta={delta} />

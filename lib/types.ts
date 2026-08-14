@@ -241,6 +241,14 @@ export interface FindingDelta {
   /** Fingerprints of findings in this report that were not in the last one. */
   new: string[];
   resolved: ResolvedFinding[];
+  /**
+   * Present now, absent last time, and present before that — a problem that
+   * was fixed and has come back. Disjoint from `new`: "you introduced this"
+   * and "the fix did not hold" call for different reactions. Empty on reports
+   * written before reopening was tracked, which means "none known" rather than
+   * "none happened".
+   */
+  reopened: string[];
   unchanged: number;
   /**
    * Rules that ran this time but not last time. Their findings are all

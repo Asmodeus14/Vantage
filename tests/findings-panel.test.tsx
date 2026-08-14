@@ -248,6 +248,7 @@ describe("FindingsPanel", () => {
           previous_created_at: new Date(Date.now() - 86_400_000).toISOString(),
           new: [fresh.fingerprint],
           resolved: [],
+          reopened: [],
           unchanged: 1,
           new_rules: [],
         })}
@@ -430,5 +431,72 @@ describe("FindingsPanel — prioritisation and the metric split", () => {
       .getAllByRole("listitem")
       .map((item) => item.textContent ?? "");
     expect(titles[0]).toContain("Critical one");
+  });
+});
+
+describe("FindingsPanel — reopened", () => {
+  const delta = (over: Partial<NonNullable<Report["delta"]>> = {}) =>
+    ({
+      previous_report_id: "prev",
+      previous_created_at: new Date().toISOString(),
+      new: [],
+      resolved: [],
+      reopened: [],
+      unchanged: 0,
+      new_rules: [],
+      ...over,
+    }) as NonNullable<Report["delta"]>;
+
+  it("marks a returning finding as reopened rather than new", () => {
+    render(
+      <FindingsPanel
+        report={report(
+          [finding({ id: "back", title: "It came back" })],
+          delta({ reopened: ["fp-back"] }),
+        )}
+      />,
+    );
+    expect(screen.getByText("Reopened")).toBeInTheDocument();
+    expect(screen.queryByText("New")).not.toBeInTheDocument();
+  });
+
+  it("includes reopened findings in the New filter", () => {
+    // The filter means "appeared since last time", which a reopened finding
+    // did. Excluding it would hide the most urgent thing behind a filter
+    // named for it.
+    render(
+      <FindingsPanel
+        initialOnlyNew
+        report={report(
+          [
+            finding({ id: "back", title: "It came back" }),
+            finding({ id: "old", title: "Still here" }),
+          ],
+          delta({ reopened: ["fp-back"], unchanged: 1 }),
+        )}
+      />,
+    );
+    expect(screen.getByText("It came back")).toBeInTheDocument();
+    expect(screen.queryByText("Still here")).not.toBeInTheDocument();
+  });
+
+  it("prefers the reopened marker when a stale report claims both", () => {
+    // Disjoint on the wire, but a report written by an older backend could
+    // carry the same fingerprint in both lists. "Reopened" is the more
+    // specific claim, so it wins.
+    render(
+      <FindingsPanel
+        report={report(
+          [finding({ id: "back", title: "It came back" })],
+          delta({ new: ["fp-back"], reopened: ["fp-back"] }),
+        )}
+      />,
+    );
+    // Scoped to the row: a "New" filter chip legitimately exists here, because
+    // the stale delta still lists the fingerprint under `new`. It is the
+    // *marker* that must not say both.
+    const row = screen.getAllByRole("listitem")[0]!;
+    expect(within(row).getByText("Reopened")).toBeInTheDocument();
+    expect(within(row).queryByText("New")).not.toBeInTheDocument();
   });
 });

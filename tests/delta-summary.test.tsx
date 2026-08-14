@@ -36,6 +36,7 @@ function delta(overrides: Partial<FindingDelta> = {}): FindingDelta {
     previous_created_at: new Date(Date.now() - 86_400_000).toISOString(),
     new: [],
     resolved: [],
+    reopened: [],
     unchanged: 0,
     new_rules: [],
     ...overrides,
@@ -128,6 +129,7 @@ describe("DeltaSummary", () => {
                 severity: "high",
               },
             ],
+            reopened: [],
             unchanged: 3,
           }),
         )}
@@ -209,5 +211,62 @@ describe("DeltaSummary", () => {
 
     await user.click(screen.getByRole("button", { name: "1 new" }));
     expect(onViewNew).toHaveBeenCalledOnce();
+  });
+});
+
+describe("DeltaSummary — reopened", () => {
+  it("says a finding came back, and says it separately from what is new", () => {
+    render(
+      <DeltaSummary
+        report={report([], {
+          previous_report_id: "prev",
+          previous_created_at: new Date().toISOString(),
+          new: ["fp-new"],
+          resolved: [],
+          reopened: ["fp-back"],
+          unchanged: 4,
+          new_rules: [],
+        })}
+        onViewNew={() => {}}
+      />,
+    );
+
+    expect(screen.getByText(/1 finding reopened/)).toBeInTheDocument();
+    // The explanation is the point: "reopened" alone is jargon.
+    expect(screen.getByText(/fixed in an earlier analysis/)).toBeInTheDocument();
+  });
+
+  it("does not mention reopening when nothing came back", () => {
+    render(
+      <DeltaSummary
+        report={report([], {
+          previous_report_id: "prev",
+          previous_created_at: new Date().toISOString(),
+          new: ["fp-new"],
+          resolved: [],
+          reopened: [],
+          unchanged: 4,
+          new_rules: [],
+        })}
+        onViewNew={() => {}}
+      />,
+    );
+    expect(screen.queryByText(/reopened/i)).not.toBeInTheDocument();
+  });
+
+  it("treats a report from before reopening was tracked as none", () => {
+    // The field is absent on the wire for older reports; that must read as
+    // "none known", not crash and not claim a regression.
+    const delta = {
+      previous_report_id: "prev",
+      previous_created_at: new Date().toISOString(),
+      new: [],
+      resolved: [],
+      unchanged: 3,
+      new_rules: [],
+    } as unknown as NonNullable<Report["delta"]>;
+
+    render(<DeltaSummary report={report([], delta)} onViewNew={() => {}} />);
+    expect(screen.getByText(/Nothing has changed/)).toBeInTheDocument();
   });
 });
