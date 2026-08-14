@@ -53,7 +53,12 @@
      stricter of the two and the pairing these are actually used in. Hue and
      saturation are untouched, so the ramp reads the same. A Lighthouse audit
      caught `high` (4.16:1) and `medium` (3.89:1) on white; checking the rest
-     against their chips found `info` and `success` failing there too. */
+     against their chips found `info` and `success` failing there too.
+
+     These values are duplicated as literal hex in
+     `app/r/[id]/opengraph-image.tsx`. Satori — which renders the preview card
+     — has no CSS custom properties, so it cannot read them from here. Change
+     one, change the other. */
   --critical: hsl(349 75% 45%);
   --critical-bg: hsl(349 90% 97%);
   --critical-border: hsl(349 80% 88%);
