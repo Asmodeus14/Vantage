@@ -500,3 +500,45 @@ describe("FindingsPanel — reopened", () => {
     expect(within(row).queryByText("New")).not.toBeInTheDocument();
   });
 });
+
+describe("FindingsPanel — confidence", () => {
+  it("labels a finding the rules could not confirm", () => {
+    render(
+      <FindingsPanel
+        report={report([
+          finding({ id: "m", title: "Unproven reach", confidence: "medium" }),
+        ])}
+      />,
+    );
+    const row = screen.getAllByRole("listitem")[0]!;
+    expect(within(row).getByText("Likely")).toBeInTheDocument();
+  });
+
+  it("labels a low-confidence finding distinctly", () => {
+    render(
+      <FindingsPanel
+        report={report([
+          finding({ id: "l", title: "Pattern only", confidence: "low" }),
+        ])}
+      />,
+    );
+    const row = screen.getAllByRole("listitem")[0]!;
+    expect(within(row).getByText("Needs review")).toBeInTheDocument();
+  });
+
+  it("leaves confirmed findings unlabelled", () => {
+    // `high` is 61-100% of rows on real reports. Labelling the norm turns the
+    // flag into a decorative stripe, which is the mistake this display made
+    // once already.
+    render(
+      <FindingsPanel
+        report={report([
+          finding({ id: "h", title: "Certain", confidence: "high" }),
+        ])}
+      />,
+    );
+    const row = screen.getAllByRole("listitem")[0]!;
+    expect(within(row).queryByText("Confirmed")).not.toBeInTheDocument();
+    expect(within(row).queryByText("Likely")).not.toBeInTheDocument();
+  });
+});

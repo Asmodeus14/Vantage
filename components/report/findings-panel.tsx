@@ -591,14 +591,40 @@ function FindingRow({
         </span>
 
         {/*
-          Only the genuinely uncertain. "Likely" was rendered on 45 of 50 rows,
-          which made it a decorative stripe down the right edge rather than a
-          signal — a flag every row carries is not a flag.
+          Anything the rules are not certain about.
+
+          This used to be `low` only, and the reason was sound at the time:
+          "Likely" was rendered on 45 of 50 rows, which made it a decorative
+          stripe down the right edge rather than a signal — a flag every row
+          carries is not a flag.
+
+          What changed is what MEDIUM means. It is now emitted deliberately and
+          narrowly: a security rule that found a dangerous sink but could not
+          prove a request-derived value reaches it, or a private key whose path
+          says test fixture. Both are "we found something, we cannot confirm
+          it", which is exactly what a reader needs to see before acting.
+
+          Re-measured on live reports rather than assumed:
+
+              psf/requests          38% medium
+              expressjs/express      9% medium
+              sindresorhus/yocto-queue   0% medium
+
+          A minority now, not a stripe. `high` stays unlabelled — it is 61-100%
+          of rows, and labelling the norm is the mistake the old comment
+          correctly identified.
         */}
-        {finding.confidence === "low" && (
-          <Tooltip content={CONFIDENCE_HINTS.low} side="left">
-            <span className="shrink-0 text-xs text-fg-subtle">
-              {CONFIDENCE_LABELS.low}
+        {finding.confidence !== "high" && (
+          <Tooltip content={CONFIDENCE_HINTS[finding.confidence]} side="left">
+            <span
+              className={cn(
+                "shrink-0 text-xs",
+                // Medium is information; low is a caution. Neither competes
+                // with the severity chip, which carries the urgency.
+                finding.confidence === "low" ? "text-medium" : "text-fg-subtle",
+              )}
+            >
+              {CONFIDENCE_LABELS[finding.confidence]}
             </span>
           </Tooltip>
         )}
