@@ -5,7 +5,6 @@ import { notFound } from "next/navigation";
 import { ReportView } from "@/components/report/report-view";
 import { ApiError, api } from "@/lib/api";
 import { authHeaders } from "@/lib/session";
-import type { ReportSummary } from "@/lib/types";
 import { repoShortName } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -26,42 +25,6 @@ const load = cache(async (id: string) => {
     throw error;
   }
 });
-
-/**
- * How long the trend chart may hold the response open.
- *
- * A streamed document does not finish until every Suspense boundary inside it
- * has resolved, and this one inherited the API client's 30s default. A trace
- * measured the document still streaming at 10.9s against a 42ms time to first
- * byte — the shell and the report had painted long before, and the connection
- * was being held open by a chart.
- *
- * Three seconds is roughly twice what a warm instance takes. Past that the
- * trend is dropped, which is a path the page already handles: the `catch`
- * below has always returned an empty history when the call fails, and a
- * timeout is only another way for it to fail.
- */
-const HISTORY_TIMEOUT_MS = 3_000;
-
-/**
- * Previous analyses of the same repository, for the trend panel.
- *
- * Fetched on the server alongside the report so the chart is in the first
- * paint rather than arriving after a client waterfall. A failure here must not
- * take down the report — the trend is an addition, not the point of the page.
- */
-async function loadHistory(repository: string | null): Promise<ReportSummary[]> {
-  if (!repository) return [];
-  try {
-    return await api.listReports(20, {
-      repository,
-      headers: await authHeaders(),
-      timeoutMs: HISTORY_TIMEOUT_MS,
-    });
-  } catch {
-    return [];
-  }
-}
 
 export async function generateMetadata({
   params,
@@ -95,16 +58,18 @@ export default async function ReportPage({
   if (!report) notFound();
 
   /*
-    Deliberately not awaited.
+    The trend history is deliberately not fetched here.
 
-    The trend chart needs the report to have loaded before it can ask for that
-    repository's history, so the two cannot run in parallel — but the chart is
-    an addition rather than the point of the page. Awaiting it here held the
-    entire report behind a second round-trip to a host that sleeps when idle.
+    It cannot run in parallel with the report — it needs the repository name
+    the report carries — so on the server it could only ever be a second,
+    serial round-trip. Handing it down as an unawaited promise kept it off the
+    first paint but not off the response: a streamed document does not finish
+    until every Suspense boundary in it resolves, and timing the chunks off the
+    wire showed that boundary holding the connection open for a further 1.6s
+    after the report was already on screen.
 
-    The promise is handed to a Suspense boundary around the chart alone, so the
-    report paints on the first response and the chart arrives behind it.
+    `TrendPanelClient` fetches it from the browser instead. The document now
+    ends with the report, and the chart arrives after hydration.
   */
-  const history = loadHistory(report.source.repository);
-  return <ReportView report={report} history={history} />;
+  return <ReportView report={report} />;
 }

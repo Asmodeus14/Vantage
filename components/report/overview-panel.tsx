@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, use } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, ShieldAlert } from "lucide-react";
 
 import { DeltaSummary } from "@/components/report/delta-summary";
@@ -23,13 +23,10 @@ import type { Report, ReportSummary } from "@/lib/types";
  */
 export function OverviewPanel({
   report,
-  history,
   onViewFindings,
   onViewNewFindings,
 }: {
   report: Report;
-  /** Previous analyses of the same repository, newest first. */
-  history: Promise<ReportSummary[]>;
   onViewFindings: () => void;
   /** Jump to Findings showing only what appeared since the last analysis. */
   onViewNewFindings: () => void;
@@ -157,13 +154,10 @@ export function OverviewPanel({
         {/* Only for repositories: an uploaded archive has no stable identity to
             trend against, so there is nothing honest to show. */}
         {report.source.repository && (
-          <Suspense fallback={<TrendSkeleton />}>
-            <TrendPanelAsync
-              history={history}
-              currentId={report.id}
-              repository={report.source.repository}
-            />
-          </Suspense>
+          <TrendPanelClient
+            currentId={report.id}
+            repository={report.source.repository}
+          />
         )}
       </div>
 
@@ -315,24 +309,62 @@ function Practice({ ok, label }: { ok: boolean; label: string }) {
 }
 
 /**
- * Unwraps the history promise so `TrendPanel` keeps taking a plain array.
+ * Fetches this repository's history from the browser.
+ *
+ * It used to be fetched on the server and handed down as a promise, unwrapped
+ * here by `use()` inside a Suspense boundary. That put the trend on the
+ * document's critical path, because a streamed document does not finish until
+ * every boundary in it has resolved — and this one is the last thing in the
+ * page. Timing the chunks off the wire:
+ *
+ *     457ms   shell + loading.tsx      <- first paint
+ *   4,936ms   page body, route chunks
+ *   6,568ms   this boundary            <- 1.6s, a quarter of the response
+ *
+ * A 3s cap bounded that but could not remove it. Nothing above depends on the
+ * trend, so the report no longer waits for it: the document now completes when
+ * the report does, and the chart arrives after hydration instead.
  *
  * The async concern lives here rather than in the panel: the panel is pure and
- * eight tests render it with a literal list, and threading a promise through
- * its signature would have made every one of them construct one for nothing.
+ * eight tests render it with a literal list, and threading a fetch through its
+ * signature would have made every one of them stub one for nothing.
  */
-function TrendPanelAsync({
-  history,
+export function TrendPanelClient({
   currentId,
   repository,
 }: {
-  history: Promise<ReportSummary[]>;
   currentId: string;
   repository: string;
 }) {
+  const [history, setHistory] = useState<ReportSummary[] | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setHistory(null);
+
+    // Same-origin, so the session cookie rides along and the listing stays
+    // scoped to the caller exactly as it was when the server fetched it.
+    fetch(`/api/reports?limit=20&repository=${encodeURIComponent(repository)}`, {
+      signal: controller.signal,
+    })
+      .then((response) => (response.ok ? response.json() : []))
+      .then((data) => setHistory(Array.isArray(data) ? data : []))
+      .catch(() => {
+        // A failed trend must not take down the report — the same reason the
+        // server version swallowed this. An empty history renders as "only one
+        // analysis so far", which is the honest thing to say when we could not
+        // find out otherwise.
+        if (!controller.signal.aborted) setHistory([]);
+      });
+
+    return () => controller.abort();
+  }, [repository]);
+
+  if (history === null) return <TrendSkeleton />;
+
   return (
     <TrendPanel
-      history={use(history)}
+      history={history}
       currentId={currentId}
       repository={repository}
     />

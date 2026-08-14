@@ -19,7 +19,7 @@ import { OverviewPanel } from "@/components/report/overview-panel";
 import { PanelSkeleton } from "@/components/report/panel-skeleton";
 import { cn, formatDuration, formatRelativeTime } from "@/lib/utils";
 import { scoreColour } from "@/lib/severity";
-import type { Report, ReportSummary } from "@/lib/types";
+import type { Report } from "@/lib/types";
 
 /**
  * Overview opens by default, so it is imported normally. The other three are
@@ -64,15 +64,7 @@ type TabId = (typeof TABS)[number]["id"];
 
 const TAB_IDS: readonly string[] = TABS.map((tab) => tab.id);
 
-export function ReportView({
-  report,
-  history,
-}: {
-  report: Report;
-  /** Previous analyses of the same repository, newest first. */
-  /** Unresolved on purpose — see the Suspense boundary in OverviewPanel. */
-  history: Promise<ReportSummary[]>;
-}) {
+export function ReportView({ report }: { report: Report }) {
   const searchParams = useSearchParams();
 
   // Activity only exists for repositories whose history could be read, so the
@@ -307,7 +299,6 @@ export function ReportView({
           <Tabs.Content value="overview">
             <OverviewPanel
               report={report}
-              history={history}
               onViewFindings={() => select("findings")}
               onViewNewFindings={() => {
                 selectOnlyNew(true);
