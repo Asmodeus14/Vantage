@@ -405,6 +405,14 @@ should take it to **1.00** and roughly halve TBT.
 This is a **Vercel project setting, not a code change** — Settings → Toolbar,
 disable for Production. It cannot be fixed from this repository.
 
+> **Corrected by the fifth measurement.** This section called the toolbar "the
+> largest single cost on the page" and the biggest remaining win. That is true
+> of the trace it was read from, and false of the site. `vercel.live` is not in
+> the HTML served to an anonymous visitor at all — the toolbar only loads for a
+> viewer signed in to Vercel with access to the project, which means the author
+> and nobody else. A clean audit records **no third-party entities**. Nothing
+> needs disabling; the setting costs real users nothing. See below.
+
 ## Where the 6.4s actually goes, and what is not yet proven
 
 Measured through the Vercel proxy, warm, repeated:
@@ -441,3 +449,66 @@ Two things found while looking, both real but neither confirmed as the cause:
    `render.yaml` sets `ENVIRONMENT=production`. Either the blueprint is not
    applied to the running service or it is overridden in the dashboard. Worth
    resolving on its own: anything else keyed off that variable is also wrong.
+
+---
+
+# Fifth measurement — production, on a clean profile
+
+Everything above was read from traces captured in a browser carrying MetaMask,
+Loom, an ad blocker, reader mode and three more extensions, while signed in to
+Vercel. Lighthouse warned about that on every run. This one was measured with a
+headless Chrome, no extensions, no Vercel session — which is what a reader gets.
+
+| | `/` | `/r/[id]` |
+|---|---|---|
+| Performance | **94** | **95** |
+| Accessibility | **100** | **100** |
+| Best Practices | **100** | **100** |
+| SEO | **100** | **100** |
+
+FCP 1.0s · LCP 2.0s · Speed Index 2.5s · TBT 230ms · CLS 0.001
+
+## What that changes
+
+**The Vercel Toolbar was never the problem.** It is not in the HTML served to
+an anonymous visitor — a clean audit records no third-party entities at all. The
+1,129,574 B and 801.5ms attributed to it were real, but they were being paid by
+one person: whoever was signed in to Vercel while measuring. The advice to
+disable it is withdrawn. Nothing needs changing in the dashboard.
+
+**Both Best Practices failures went with it.** `third-party-cookies` and
+`inspector-issues` were both the toolbar's avatar request. 0.77 → 1.00 without
+a line of code.
+
+**TBT was mostly extensions.** 513ms measured, 230ms real. The "Unattributable"
+CPU in the earlier traces was the extensions, exactly as the incognito warning
+kept saying.
+
+## What was actually ours, and is now fixed
+
+| | Before | After |
+|---|---|---|
+| Document stream | 6.4s, three flushes | ends with the report |
+| `color-contrast` | 4 tokens below AA | Accessibility 100 |
+| `meta-description` | failing site-wide | in the first-flush `<head>` |
+| `robots-txt` | HTML 404 parsed as robots syntax | real `robots.txt` |
+| SEO | 83 | **100** |
+
+## The lesson worth keeping
+
+Three of the four things this document spent the most words on — the toolbar,
+TBT, the "20.8s Speed Index" that started the whole investigation — were
+measurement artefacts of the profile doing the measuring. The two real defects,
+`meta-description` and `robots-txt`, were each worth one audit and neither was
+visible without reading the served bytes.
+
+**Measure on a clean profile first.** Every hour spent above the line between
+those two facts was spent on someone else's browser extensions.
+
+## Still open
+
+- **Backend latency.** `/api/reports` costs ~1.3s more than `/api/health` warm,
+  flat in row count. Unattributed; needs the Render host directly.
+- **`PostgresReportStore.list` over-fetches** the full payload per row while
+  three comments claim it does not. Untested on Postgres, so left alone.
+- **`/api/health` reports `"environment":"development"`** in production.
