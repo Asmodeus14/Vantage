@@ -46,16 +46,23 @@
   --accent-border: hsl(217 91% 84%);
 
   /* Severity ramp. Ordered so adjacent levels stay distinguishable, and
-     paired with an icon/label everywhere so colour is never the sole signal. */
+     paired with an icon/label everywhere so colour is never the sole signal.
+
+     Lightness on the foreground steps is set by contrast, not by taste: each
+     clears 4.5:1 against white *and* against its own `-bg` chip, which is the
+     stricter of the two and the pairing these are actually used in. Hue and
+     saturation are untouched, so the ramp reads the same. A Lighthouse audit
+     caught `high` (4.16:1) and `medium` (3.89:1) on white; checking the rest
+     against their chips found `info` and `success` failing there too. */
   --critical: hsl(349 75% 45%);
   --critical-bg: hsl(349 90% 97%);
   --critical-border: hsl(349 80% 88%);
 
-  --high: hsl(22 85% 44%);
+  --high: hsl(22 85% 39%);
   --high-bg: hsl(28 100% 96%);
   --high-border: hsl(28 85% 85%);
 
-  --medium: hsl(38 80% 38%);
+  --medium: hsl(38 80% 33%);
   --medium-bg: hsl(45 100% 95%);
   --medium-border: hsl(45 80% 82%);
 
@@ -63,11 +70,11 @@
   --low-bg: hsl(217 95% 97%);
   --low-border: hsl(217 85% 88%);
 
-  --info: hsl(220 9% 46%);
+  --info: hsl(220 9% 45%);
   --info-bg: hsl(220 16% 96%);
   --info-border: hsl(220 13% 87%);
 
-  --success: hsl(152 65% 32%);
+  --success: hsl(152 65% 31%);
   --success-bg: hsl(150 70% 96%);
   --success-border: hsl(150 55% 82%);
 
