@@ -460,8 +460,13 @@ committed secrets, correctness bugs and structural problems anchored to a file
 and line — and, on a second run, what changed since the first.
 
 **Which model does it use?**
-Google Gemini, called by the API rather than the browser. The model is
-configurable; the default is `gemini-3.6-flash`.
+Google Gemini, called by the API rather than the browser. The default is
+`gemini-3.5-flash-lite`, with `gemini-3.6-flash` behind it: when the primary
+fails transiently the request is retried on the next model in the chain, because
+a 503 is a statement about one model's capacity rather than about the request.
+Both the chain and the per-attempt timeouts are configurable. The measurements
+the defaults were chosen from are in
+[`docs/AI_LATENCY.md`](../vantage-backend/docs/AI_LATENCY.md).
 
 **Do I need an API key?**
 No. Analysis is entirely rule-based and works without one. A key only enables
