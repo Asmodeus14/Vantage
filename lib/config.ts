@@ -72,5 +72,21 @@ export function authUnavailableReason(): string | null {
 export const MAX_UPLOAD_BYTES = 250 * 1024 * 1024;
 
 export const APP_NAME = "Vantage";
+/*
+  Names the scope rather than implying "any repository".
+
+  The rule engine understands JavaScript, TypeScript and Python. Secret
+  scanning and dependency advisories sit on top of that and are
+  language-agnostic; anything else gets structural metrics and little more.
+  The previous line — "point it at a repository and it tells you what is
+  wrong" — was true of those two ecosystems and an overstatement everywhere
+  else, and a scanner that overstates its reach is one people stop trusting
+  after the first quiet run on a language it cannot read.
+
+  The second clause is the part no other scanner claims, so it earns its place
+  in the one sentence that actually gets read.
+*/
 export const APP_DESCRIPTION =
-  "Point it at a repository and it tells you what is wrong, exactly where.";
+  "Finds security issues, secrets and dependency risk in JavaScript, " +
+  "TypeScript and Python repositories — and tells you what changed since " +
+  "the last analysis.";

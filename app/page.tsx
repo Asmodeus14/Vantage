@@ -39,8 +39,19 @@ export default function HomePage() {
           Analyse a repository
         </h1>
         <p className="mt-1.5 max-w-[62ch] text-pretty text-sm text-fg-muted">
-          Point it at a repository and it reports what is wrong and exactly
-          where — each finding anchored to a file and line.
+          Security issues, secrets and dependency risk, each anchored to a file
+          and line — and on a second run, what changed since the last one.
+        </p>
+        {/*
+          One line, not a capability panel. Someone about to paste a Go
+          repository should learn the depth of coverage before they wait for an
+          analysis, not from a report that came back quiet. Secrets and
+          dependency advisories genuinely do work anywhere, so the sentence
+          says which part is narrow rather than implying all of it is.
+        */}
+        <p className="mt-1 text-xs text-fg-subtle">
+          Rules cover JavaScript, TypeScript and Python. Secret scanning and
+          dependency advisories work on any repository.
         </p>
       </div>
 
