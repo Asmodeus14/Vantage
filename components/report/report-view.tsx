@@ -14,6 +14,7 @@ import {
   Github,
   ListFilter,
   LayoutDashboard,
+  RefreshCw,
 } from "lucide-react";
 
 import { OverviewPanel } from "@/components/report/overview-panel";
@@ -21,6 +22,7 @@ import { PrCommentAction } from "@/components/report/pr-comment-action";
 import { PanelSkeleton } from "@/components/report/panel-skeleton";
 import { cn, formatDuration, formatRelativeTime } from "@/lib/utils";
 import { scoreColour } from "@/lib/severity";
+import { useStartAnalysis } from "@/lib/use-start-analysis";
 import type { Report } from "@/lib/types";
 
 /**
@@ -368,14 +370,64 @@ export function ReportView({ report }: { report: Report }) {
             Report <span className="font-mono">{report.id}</span> · this URL is
             shareable
           </span>
-          <Link
-            href="/"
-            className="rounded transition-colors duration-(--duration-fast) hover:text-fg"
-          >
-            Analyse another repository
-          </Link>
+          <span className="flex items-center gap-3">
+            {/*
+              The most valuable action on this page, and until now it did not
+              exist. Everything Vantage is built around — new, resolved,
+              unchanged, reopened — only appears on a *second* analysis of the
+              same repository, and the only route to one was going back to the
+              form and re-pasting the URL.
+            */}
+            <ReanalyseAction report={report} />
+            <Link
+              href="/"
+              className="rounded transition-colors duration-(--duration-fast) hover:text-fg"
+            >
+              Analyse another repository
+            </Link>
+          </span>
         </div>
       </footer>
     </div>
+  );
+}
+
+/**
+ * Re-runs the analysis for this repository.
+ *
+ * Uses the ref the report was produced from, not the default branch. Comparing
+ * `main` against a report of `v2.1.0` would produce a delta full of
+ * differences that are real but are not *changes*, which is exactly the kind
+ * of misleading comparison the diffing module refuses to make elsewhere.
+ *
+ * Absent for uploads: a ZIP has no stable identity to re-fetch, and the
+ * button would exist only to fail.
+ */
+function ReanalyseAction({ report }: { report: Report }) {
+  const { start, submitting, error } = useStartAnalysis();
+  const target = report.source.url ?? report.source.repository;
+
+  if (!target) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => start(target, report.source.ref)}
+        disabled={submitting}
+        className="inline-flex items-center gap-1.5 rounded underline decoration-border-strong underline-offset-4 transition-colors duration-(--duration-fast) hover:text-fg hover:decoration-fg disabled:opacity-60"
+      >
+        <RefreshCw
+          className={cn("size-3", submitting && "animate-spin")}
+          aria-hidden
+        />
+        {submitting ? "Starting…" : "Analyse again"}
+      </button>
+      {error && (
+        <span className="text-critical" role="alert">
+          {error.message}
+        </span>
+      )}
+    </>
   );
 }

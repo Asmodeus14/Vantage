@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { FileArchive, Github, Upload, X } from "lucide-react";
 
 import { RepoPicker } from "@/components/repo-picker";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/ui/states";
 import { BROWSER_BACKEND_URL, MAX_UPLOAD_BYTES } from "@/lib/config";
+import { useStartAnalysis } from "@/lib/use-start-analysis";
 import { cn, formatBytes } from "@/lib/utils";
 import type { ApiErrorBody, JobStarted } from "@/lib/types";
 
@@ -19,51 +19,32 @@ const EXAMPLES = [
 ] as const;
 
 export function AnalyseForm() {
-  const router = useRouter();
   const [url, setUrl] = React.useState("");
   const [file, setFile] = React.useState<File | null>(null);
   const [dragging, setDragging] = React.useState(false);
-  const [submitting, setSubmitting] = React.useState(false);
-  const [error, setError] = React.useState<{ message: string; detail?: string } | null>(
-    null,
-  );
   const inputRef = React.useRef<HTMLInputElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const start = (jobId: string) => router.push(`/analysing/${jobId}`);
+  /*
+    One submit lifecycle for both paths, shared with the report page's
+    "Analyse again". The `submitting` flag deliberately stays set through the
+    navigation — see the note in the hook — and having two copies of that rule
+    is how one of them eventually stops obeying it.
+  */
+  const {
+    start: startAnalysis,
+    goToJob,
+    submitting,
+    setSubmitting,
+    error,
+    setError,
+  } = useStartAnalysis();
 
+  // Shared with the report page's "Analyse again", so the two cannot drift
+  // apart on the `submitting` lifecycle — see `lib/use-start-analysis.ts`.
   async function submitRepository(event: React.FormEvent) {
     event.preventDefault();
-    if (!url.trim() || submitting) return;
-
-    setSubmitting(true);
-    setError(null);
-    try {
-      const response = await fetch("/api/analyze/repository", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-      const body = await response.json();
-      if (!response.ok) {
-        const failure = body as ApiErrorBody;
-        setError({ message: failure.message, ...(failure.detail && { detail: failure.detail }) });
-        setSubmitting(false);
-        return;
-      }
-      // Deliberately stays pending. `router.push` returns before the
-      // navigation completes, so clearing it here — as a `finally` used to —
-      // dropped the button back to idle mid-flight and left the page looking
-      // frozen until the next route rendered. The component unmounts on
-      // navigation, so there is nothing to reset.
-      start((body as JobStarted).job_id);
-    } catch {
-      setError({
-        message: "Could not reach the analysis server.",
-        detail: "Check your connection, or the server may still be waking up.",
-      });
-      setSubmitting(false);
-    }
+    await startAnalysis(url);
   }
 
   async function submitUpload(selected: File) {
@@ -117,7 +98,7 @@ export function AnalyseForm() {
         return;
       }
       // As above: stays pending through the navigation.
-      start((body as JobStarted).job_id);
+      goToJob((body as JobStarted).job_id);
     } catch {
       setError({
         message: "Upload failed.",
