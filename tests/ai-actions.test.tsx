@@ -172,3 +172,53 @@ describe("AiActions", () => {
     expect(screen.getByText("Expected a unified diff; got prose.")).toBeInTheDocument();
   });
 });
+
+describe("AiActions without source", () => {
+  const READY = {
+    configured: true,
+    available: true,
+    state: "ready",
+    model: "gemini-3.5-flash-lite",
+    reason: null,
+    retry_after_seconds: null,
+  };
+
+  /** A dependency CVE: real, actionable, and not anchored to any line. */
+  const fileless: Finding = {
+    ...finding,
+    id: "dep1",
+    rule_id: "dependencies/known-vulnerability",
+    category: "dependencies",
+    title: "lodash 4.17.11 has a known vulnerability",
+    file: null,
+    line: null,
+    end_line: null,
+    snippet: null,
+    snippet_start_line: null,
+  };
+
+  it("disables only the actions that need code, and says why", async () => {
+    mockHealth(READY);
+    render(<AiActions finding={fileless} reportId="r1" />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Explain" })).toBeEnabled();
+    });
+    expect(screen.getByRole("button", { name: "Propose fix" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Generate test" })).toBeDisabled();
+    expect(
+      screen.getByText(/isn't anchored to a file/i),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves every action enabled when the finding has a file", async () => {
+    mockHealth(READY);
+    render(<AiActions finding={finding} reportId="r1" />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Propose fix" })).toBeEnabled();
+    });
+    expect(screen.getByRole("button", { name: "Generate test" })).toBeEnabled();
+    expect(screen.queryByText(/isn't anchored to a file/i)).not.toBeInTheDocument();
+  });
+});

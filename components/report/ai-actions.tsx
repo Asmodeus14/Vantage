@@ -27,10 +27,17 @@ import type { AIHealth, ApiErrorBody, Finding, HealthResponse } from "@/lib/type
  * once it went, the flask and the info glyph were decorating two verbs that
  * needed no help. Three short labels in a row read faster without them.
  */
+/*
+ * `needsSource` distinguishes the two that have to produce code from the one
+ * that does not. A dependency CVE or a project-wide finding is not anchored to
+ * a line, so a diff and a test have nothing to be *of* — offering them meant
+ * spending a real model request to be told INSUFFICIENT_CONTEXT. Explain still
+ * works from the finding's own description, so it stays enabled.
+ */
 const ACTIONS = [
-  { id: "explain", label: "Explain" },
-  { id: "propose_fix", label: "Propose fix" },
-  { id: "generate_test", label: "Generate test" },
+  { id: "explain", label: "Explain", needsSource: false },
+  { id: "propose_fix", label: "Propose fix", needsSource: true },
+  { id: "generate_test", label: "Generate test", needsSource: true },
 ] as const;
 
 type ActionId = (typeof ACTIONS)[number]["id"];
@@ -120,6 +127,13 @@ export function AiActions({
       ? "Checking whether AI is available…"
       : (health.reason ?? "AI actions are unavailable.");
 
+  // A file is enough on its own: the server re-reads the repository for wider
+  // context, so a finding with a path but no stored snippet is still workable.
+  const hasSource = Boolean(finding.file) || Boolean(finding.snippet);
+  const noSourceReason = finding.file
+    ? `No source was captured for ${finding.file}.`
+    : "This finding isn't anchored to a file, so there's no code to work from.";
+
   return (
     <section className="mt-5 border-t border-border pt-4" aria-label="AI actions">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -127,11 +141,15 @@ export function AiActions({
 
         <div className="flex flex-wrap gap-1.5">
           {ACTIONS.map((action) => {
+            const blockedForSource = action.needsSource && !hasSource;
+            const disabled = !available || blockedForSource;
+            const reason = blockedForSource ? noSourceReason : disabledReason;
+
             const button = (
               <Button
                 variant="secondary"
                 size="sm"
-                disabled={!available}
+                disabled={disabled}
                 loading={running === action.id}
                 onClick={() => void run(action.id)}
               >
@@ -140,16 +158,22 @@ export function AiActions({
             );
 
             // A dead button with no reason is worse than no button.
-            return available ? (
-              <React.Fragment key={action.id}>{button}</React.Fragment>
-            ) : (
-              <Tooltip key={action.id} content={disabledReason} side="top">
+            return disabled ? (
+              <Tooltip key={action.id} content={reason} side="top">
                 <span className="inline-block">{button}</span>
               </Tooltip>
+            ) : (
+              <React.Fragment key={action.id}>{button}</React.Fragment>
             );
           })}
         </div>
       </div>
+
+      {available && !hasSource && (
+        <p className="mt-2 text-xs leading-relaxed text-fg-subtle">
+          {noSourceReason} Explain still works from the finding itself.
+        </p>
+      )}
 
       {!available && (
         <p className="mt-2 text-xs leading-relaxed text-fg-subtle">{disabledReason}</p>
