@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!--
+    Theme-aware favicon. The tab strip is dark in dark mode and light in light
+    mode, and a single black mark disappears against the first. Both glyphs are
+    the same shape; only the colour differs.
+
+    An SVG is used rather than two <link rel="icon" media="..."> elements
+    because media on a favicon link is honoured inconsistently, while a media
+    query *inside* an SVG icon is the established way to do this.
+    app/icon.png stays as the fallback for anything that cannot render it.
+  -->
+  <style>
+    .on-light { display: inline }
+    .on-dark { display: none }
+    @media (prefers-color-scheme: dark) {
+      .on-light { display: none }
+      .on-dark { display: inline }
+    }
+  </style>
+  <image class="on-light" width="32" height="32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAC40lEQVR42u2XTYhNYRjHf+fcOzOS7hhc8pERVtSUskCjFFuRhcmEUrMgzCyQUdYWvhMWsxKN3chiioVEEpoNjQ2lZHwMw62RGHfuudfm/05Pb2fuPXMvG7z1du55nvf5P9/Pey786yswzyChTLECP0yIU9JOLOAbPVVerLFpoAW4BEQmEhPW6T0C0sAN4CyQEs0uR+sEtgMFORd4BjrsFLAfAd8xjHI7DywTUOiFPQCWAj8TYt2VbhDodykoAJ/NHgFGRS8BfcZjvN99OlOQzIjB+SJ6XrqWO2FnxSljXT+QAbLALKAZeKMQl4CNRrFTvkm8SGebJZsVVr/BP211u3BmgLeq8iKwwavqXRIuAs8kHGrXAYPilYB2T3a9wX0PNPr14aKw21g5CNSLl9bhx4a/z6Sg09AfGEy3nxr+npgUThAC4JE5fEC8ej3XyotIeZ0HzARyokXAak9mr8F7Is9TcT3piGs8JXNMmAGuCuyH8nvBKOjRmTrJzAY+mdpZN5n3vhFXDOhlAxoA82XgYWCJKbycIhIYYy8anGuVlNt+XqA2itQ6q7xaaQOmq5edgi4v9C3AuDBGgYUx8yN2OSVHDPg9Y73zrt10xXOgQXwnb4fbUQ+74qwPBfjCtFabMaIRGIqZCw16bjPGvQSmxYzlssvlabPJ8WvNCoATxrte5f6QeDOAV8bwLUlyX86I20ZZNzAXGJNRY5p2PeI3qTjd+VvVKrcFuVLzOwI+Ag+NgmOa6S5K94EP+p0HViQtvEpROG9y6pQPKedZjdeSd+ZcLd77Bdkk7wu6bgvADnNup7x2vGHJhFV8pEwahQ7j5TvRQzN4hg2/Yyptl9SIEBiIuScADhr6QLl5X2sUWk2ec2rLjD42XO5bf0fuyxnRa7w9A5w079f/lHLblouAr5rzBRXfOPANWFxr2yW9J7pjPjKPV+N9UEVbBrrxbupqRh2wVZMR80n/d/+lC8q8/1+J1y9tgQBxgq7/iQAAAABJRU5ErkJggg=="/>
+  <image class="on-dark" width="32" height="32" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADCUlEQVR42u2XX2hPYRjHn/e33zZJm2E0ZGJX1Eq5QJTiVuTCslBqF4S5QCjXLvxPuNiVaO4mFysuJJLQbmhuKCXzZ/6tJjHb7+zj5vvqcfptv7ONGzz1ds55n/d5nu/z95xj9q9TMDMDQrwvKRDC8Gh8IJfRNiEExiJgDuyYeSOBzZtZI3DezBJFIZgZWjFKiZnlzexqCOEUUBZCSFLKykIICdBqZpvMrGBmuVRkve4yM9tlQB64STYaBBYCwUcOyGlvAfA9o65bQD4qWAh8lYEC8NGtD0C/9gE6osfee107dKYgmQ9OzyftD8pWQxTO63rcoesEqoBaYBpQD7wEEvHXRMPO+FrxEp2tl2ytdHU6/Sd+2o7h1KFXwLDWal/VwFYJDwOPlbqcVjnQLR5Ac0p2ldP7BqiOaUtHYZtD2Q1UyFBeQB84/k6Xgla3fzfqdOuR429Pp9BcOANw3x3eLV6FrsvlRaK8zgKmAn3aS4ClKZkdTt9DeV5WrCdjLpeljMyIYRb/kpR9U37POgNtOlMumenAe1c7K4p6XwTERaf0glMagDoB3A/Md4XXp4gEB/ac03N5VOOpfp6tNkrUOktStdIETFYvR9qbCn0jMCQd/cCc9PwYCUQ0csApv+3qJHrX7LriCVApfpT3w+2g111y1isSlcBT11pNDkQ10FNkLlTqutGBewZM+qXtMoCItbDO5fgFUKX9o867duV+n3hTgOcO+PqSuS8B4oYzdgiYCQwI1ICmXZv4NSrOSNfHZTxVkIs1vxPgHXDPGTgMNLgo3QHe6n4QWJSp8DJE4YzLaaQe1UmtxiupM6fH7X2RgqyR9wW9bgvAZndui7yOvF7J5Mb6kTJaFFqcl6/VDTFN5TIaqSVz22UFIWNd6feE+HvcfteI8/43RGGly3OfXuFV+tiIuV854dyXANHuvD0JHHPPV/6I8VRbzgU+a84XVHxDwBdg3oTaLgOIOOcPFfnIPDIe78M4/gmCmVWY2TUzqxOr18w2mNmAfl74u//nlOcw0vN/Ggv9AKXhI6a0u5kuAAAAAElFTkSuQmCC"/>
+</svg>

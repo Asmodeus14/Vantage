@@ -41,7 +41,20 @@ export async function generateMetadata({
       "Report";
     return {
       title: `${name} — ${report.score.value}/100`,
-      description: report.score.summary,
+      /*
+        The summary goes to `og:description`, not `description`.
+
+        The layout renders a `<meta name="description">` into the first-flush
+        head for every route; setting one here too would put two on the page,
+        and only a crawler — which gets blocking metadata — would ever see the
+        second. `og:description` is what link previews read, and the crawlers
+        that fetch those are exactly the ones that do get the full head, so the
+        report's own summary still reaches the place it is actually used.
+
+        Nothing is lost for search: this route is `no-store` and its id is
+        unguessable, so it was never going to be indexed on its own terms.
+      */
+      openGraph: { description: report.score.summary },
     };
   } catch {
     return { title: "Report" };
