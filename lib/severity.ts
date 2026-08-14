@@ -74,6 +74,7 @@ export const SEVERITY_META: Record<Severity, SeverityMeta> = {
 };
 
 export const CATEGORY_LABELS: Record<Category, string> = {
+  secret: "Secrets",
   security: "Security",
   dependencies: "Dependencies",
   correctness: "Correctness",
@@ -81,6 +82,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   performance: "Performance",
   testing: "Testing",
   configuration: "Configuration",
+  metric: "Metrics",
 };
 
 export const CONFIDENCE_LABELS: Record<Confidence, string> = {

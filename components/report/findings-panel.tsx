@@ -27,7 +27,7 @@ import {
   compareSeverity,
 } from "@/lib/severity";
 import { cn, pluralise } from "@/lib/utils";
-import { SEVERITIES } from "@/lib/types";
+import { METRIC_CATEGORIES, SEVERITIES } from "@/lib/types";
 import type { Category, Finding, Report, Severity } from "@/lib/types";
 
 // Enough to fill a tall screen without mounting a report's worth of rows.
@@ -66,6 +66,14 @@ export function FindingsPanel({
    * count is always on screen with a way to reveal them.
    */
   const [showSuppressed, setShowSuppressed] = React.useState(false);
+  /**
+   * Metrics are out of the default view on the same terms and for the same
+   * reason. "This file is 1,050 lines long" is a measurement, not a defect —
+   * there is no fix, only a judgement — and a large repository has enough of
+   * them to bury everything that *is* work. Choosing the Metrics category
+   * shows them regardless, and the count is always on screen.
+   */
+  const [showMetrics, setShowMetrics] = React.useState(false);
   const [expanded, setExpanded] = React.useState<string | null>(
     report.findings[0]?.id ?? null,
   );
@@ -124,6 +132,15 @@ export function FindingsPanel({
         if (finding.suppressed && !showSuppressed) return false;
         if (severities.size > 0 && !severities.has(finding.severity)) return false;
         if (category !== "all" && finding.category !== category) return false;
+        // Only while browsing everything: asking for Metrics explicitly must
+        // show them, or the category filter would appear broken.
+        if (
+          category === "all" &&
+          !showMetrics &&
+          METRIC_CATEGORIES.includes(finding.category)
+        ) {
+          return false;
+        }
         if (onlyNew && !newPrints.has(finding.fingerprint)) return false;
         if (!needle) return true;
         return (
@@ -133,8 +150,24 @@ export function FindingsPanel({
           finding.rule_id.toLowerCase().includes(needle)
         );
       })
+      /*
+        Priority first, severity only as a tie-break.
+
+        Severity alone answers "how bad would this be", which is not the same
+        question as "what should I do next" — it ranks a low-confidence guess
+        above a certainty one step below it, and it cannot express that thirty
+        long-file measurements are worth less than one medium-confidence
+        injection. `priority` is severity x confidence x how actionable the
+        category is, computed on the server so this list and any other consumer
+        cannot disagree about the answer.
+
+        Reports written before prioritisation carry `priority: 0`, so they fall
+        through to the old severity ordering rather than shuffling into a
+        meaningless order.
+      */
       .sort(
         (a, b) =>
+          (b.priority ?? 0) - (a.priority ?? 0) ||
           compareSeverity(a.severity, b.severity) ||
           (a.file ?? "").localeCompare(b.file ?? ""),
       );
@@ -146,7 +179,18 @@ export function FindingsPanel({
     onlyNew,
     newPrints,
     showSuppressed,
+    showMetrics,
   ]);
+
+  /** Hidden by the metric filter right now — always shown as a count. */
+  const hiddenMetrics = React.useMemo(
+    () =>
+      report.findings.filter(
+        (finding) =>
+          !finding.suppressed && METRIC_CATEGORIES.includes(finding.category),
+      ).length,
+    [report.findings],
+  );
 
   // `/` focuses search; j/k move through the list — familiar from pagers and
   // review tools. None of these shadow a browser binding.
@@ -219,7 +263,7 @@ export function FindingsPanel({
   const [limit, setLimit] = React.useState(PAGE_SIZE);
   React.useEffect(() => {
     setLimit(PAGE_SIZE);
-  }, [query, severities, category, onlyNew, showSuppressed]);
+  }, [query, severities, category, onlyNew, showSuppressed, showMetrics]);
 
   const rendered = visible.slice(0, limit);
   const remaining = visible.length - rendered.length;
@@ -360,6 +404,24 @@ export function FindingsPanel({
               >
                 {report.suppressed_count} accepted
                 {showSuppressed ? " (showing)" : ""}
+              </button>
+            </>
+          )}
+          {/*
+            Same contract as accepted findings: out of the way by default,
+            never gone. A count with no way to reach it is just a number.
+          */}
+          {hiddenMetrics > 0 && (
+            <>
+              <span aria-hidden>·</span>
+              <button
+                type="button"
+                onClick={() => setShowMetrics((current) => !current)}
+                aria-pressed={showMetrics}
+                className="rounded underline decoration-border-strong underline-offset-4 transition-colors duration-(--duration-fast) hover:text-fg hover:decoration-fg"
+              >
+                {hiddenMetrics} {pluralise(hiddenMetrics, "metric")}
+                {showMetrics ? " (showing)" : ""}
               </button>
             </>
           )}

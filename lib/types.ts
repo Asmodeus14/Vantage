@@ -10,16 +10,30 @@
 export const SEVERITIES = ["critical", "high", "medium", "low", "info"] as const;
 export type Severity = (typeof SEVERITIES)[number];
 
+/**
+ * Ordered by how much the reader can act on them, which is the order the
+ * filter offers them in.
+ *
+ * `secret` and `metric` are split out of `security` and `quality`. A committed
+ * credential is an incident rather than a weakness; a metric is a measurement
+ * rather than a defect — "this file is 1,050 lines" has no fix, only a
+ * judgement, and mixed into the list it buries real work under volume.
+ */
 export const CATEGORIES = [
+  "secret",
   "security",
   "dependencies",
   "correctness",
-  "quality",
   "performance",
-  "testing",
   "configuration",
+  "testing",
+  "quality",
+  "metric",
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
+
+/** Measurements. Shown, never scored, and not in the default view. */
+export const METRIC_CATEGORIES: readonly Category[] = ["metric"];
 
 export type Confidence = "high" | "medium" | "low";
 export type SourceKind = "repository" | "upload";
@@ -46,6 +60,13 @@ export interface Finding {
   snippet_start_line: number | null;
   remediation: string | null;
   references: string[];
+  /**
+   * What to fix first: severity x confidence x how actionable the category is,
+   * 0-100, computed on the server so every consumer ranks findings the same
+   * way. 0 on reports written before prioritisation existed, which sorts them
+   * last rather than pretending to know.
+   */
+  priority: number;
   /**
    * Accepted by the report's owner. Set when the report is read, never stored,
    * so restoring a finding takes effect without re-analysing.

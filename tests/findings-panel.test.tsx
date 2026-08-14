@@ -47,6 +47,7 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     remediation: null,
     references: [],
     suppressed: false,
+    priority: 0,
     suppression_reason: null,
     ...overrides,
   };
@@ -340,5 +341,94 @@ describe("FindingsPanel — incremental rendering", () => {
     // Filtering resets the page, so what is on screen is the start of the
     // new result set.
     expect(screen.getByText("Finding number 7")).toBeInTheDocument();
+  });
+});
+
+describe("FindingsPanel — prioritisation and the metric split", () => {
+  it("orders by priority, not by severity", () => {
+    // A medium-severity certainty the server ranked above a high-severity
+    // guess. Sorting by severity would invert these.
+    render(
+      <FindingsPanel
+        report={report([
+          finding({
+            id: "guess",
+            title: "High severity guess",
+            severity: "high",
+            confidence: "low",
+            priority: 15,
+          }),
+          finding({
+            id: "certain",
+            title: "Medium severity certainty",
+            severity: "medium",
+            confidence: "high",
+            priority: 60,
+          }),
+        ])}
+      />,
+    );
+
+    const titles = screen
+      .getAllByRole("listitem")
+      .map((item) => item.textContent ?? "");
+    expect(titles[0]).toContain("Medium severity certainty");
+    expect(titles[1]).toContain("High severity guess");
+  });
+
+  it("keeps metrics out of the default view but never hides that they exist", async () => {
+    const user = userEvent.setup();
+    render(
+      <FindingsPanel
+        report={report([
+          finding({ id: "sec", title: "Real problem", category: "security", priority: 90 }),
+          finding({ id: "m1", title: "File is long", category: "metric", priority: 3 }),
+          finding({ id: "m2", title: "Also long", category: "metric", priority: 3 }),
+        ])}
+      />,
+    );
+
+    expect(screen.getByText("Real problem")).toBeInTheDocument();
+    expect(screen.queryByText("File is long")).not.toBeInTheDocument();
+
+    // The count is on screen, and it is the way back to them.
+    const toggle = screen.getByRole("button", { name: /2 metrics/i });
+    await user.click(toggle);
+    expect(screen.getByText("File is long")).toBeInTheDocument();
+  });
+
+  it("shows metrics when the category is asked for explicitly", async () => {
+    const user = userEvent.setup();
+    render(
+      <FindingsPanel
+        report={report([
+          finding({ id: "sec", title: "Real problem", category: "security" }),
+          finding({ id: "m1", title: "File is long", category: "metric" }),
+        ])}
+      />,
+    );
+
+    // Selecting Metrics and getting an empty list would read as a broken
+    // filter rather than a deliberate default.
+    await user.selectOptions(screen.getByLabelText(/category/i), "metric");
+    expect(screen.getByText("File is long")).toBeInTheDocument();
+    expect(screen.queryByText("Real problem")).not.toBeInTheDocument();
+  });
+
+  it("falls back to severity order for reports written before prioritisation", () => {
+    // Every finding carries priority 0, so the old ordering must still apply
+    // rather than the list shuffling into an arbitrary order.
+    render(
+      <FindingsPanel
+        report={report([
+          finding({ id: "low", title: "Low one", severity: "low", priority: 0 }),
+          finding({ id: "crit", title: "Critical one", severity: "critical", priority: 0 }),
+        ])}
+      />,
+    );
+    const titles = screen
+      .getAllByRole("listitem")
+      .map((item) => item.textContent ?? "");
+    expect(titles[0]).toContain("Critical one");
   });
 });

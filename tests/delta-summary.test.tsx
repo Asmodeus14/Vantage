@@ -23,6 +23,7 @@ function finding(overrides: Partial<Finding> = {}): Finding {
     remediation: null,
     references: [],
     suppressed: false,
+    priority: 0,
     suppression_reason: null,
     ...overrides,
   };
