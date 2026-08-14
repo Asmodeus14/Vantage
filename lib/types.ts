@@ -361,3 +361,10 @@ export interface ApiErrorBody {
   message: string;
   detail?: string;
 }
+
+export interface PullRequestCommentResult {
+  comment_url: string;
+  pull_request_url: string;
+  /** The commit the comment describes, so staleness is checkable. */
+  head_sha: string;
+}

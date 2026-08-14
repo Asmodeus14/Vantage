@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { OverviewPanel } from "@/components/report/overview-panel";
+import { PrCommentAction } from "@/components/report/pr-comment-action";
 import { PanelSkeleton } from "@/components/report/panel-skeleton";
 import { cn, formatDuration, formatRelativeTime } from "@/lib/utils";
 import { scoreColour } from "@/lib/severity";
@@ -237,6 +238,15 @@ export function ReportView({ report }: { report: Report }) {
                 <Download className="size-3" aria-hidden />
                 Export SARIF
               </a>
+              {/* Only for repositories, and only for the owner: the comment is
+                  posted on their token, so for anyone else this control would
+                  exist only to be refused. */}
+              {report.can_suppress && report.source.repository && (
+                <>
+                  <span aria-hidden>·</span>
+                  <PrCommentAction reportId={report.id} />
+                </>
+              )}
             </div>
           </div>
 

@@ -11,6 +11,7 @@ import type {
   ApiErrorBody,
   HealthResponse,
   JobStarted,
+  PullRequestCommentResult,
   Report,
   ReportSummary,
   SourceFile,
@@ -166,6 +167,24 @@ export const api = {
       body: JSON.stringify({ url, ref }),
       ...options,
     });
+  },
+
+  commentOnPullRequest(
+    id: string,
+    pullRequestUrl: string,
+    options?: RequestOptions,
+  ): Promise<PullRequestCommentResult> {
+    return request<PullRequestCommentResult>(
+      `/api/reports/${encodeURIComponent(id)}/pull-request-comment`,
+      {
+        method: "POST",
+        body: JSON.stringify({ pull_request_url: pullRequestUrl }),
+        // Resolves the PR and then reads up to 100 existing comments before
+        // writing, so this is two or three GitHub round-trips, not one.
+        timeoutMs: 25_000,
+        ...options,
+      },
+    );
   },
 };
 
