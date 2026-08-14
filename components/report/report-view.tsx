@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import * as Tabs from "@radix-ui/react-tabs";
 import {
   Boxes,
+  Download,
   ExternalLink,
   FileArchive,
   GitCommitHorizontal,
@@ -219,6 +220,23 @@ export function ReportView({ report }: { report: Report }) {
                 {report.project.analysed_files} files,{" "}
                 {report.project.total_lines.toLocaleString()} lines
               </span>
+              <span aria-hidden>·</span>
+              {/*
+                A plain link, not a button: it is a file download, and the
+                browser already knows how to do those. Sitting in the metadata
+                row rather than as an action beside the score keeps it where
+                someone looks when they have decided to take the findings
+                somewhere else, without implying it is the main thing to do.
+              */}
+              <a
+                href={`/api/reports/${encodeURIComponent(report.id)}/sarif`}
+                download={`${report.id}.vantage.sarif`}
+                className="inline-flex items-center gap-1 rounded underline decoration-border-strong underline-offset-4 transition-colors duration-(--duration-fast) hover:text-fg hover:decoration-fg"
+                title="SARIF 2.1.0 — import into GitHub code scanning, VS Code or any SARIF viewer"
+              >
+                <Download className="size-3" aria-hidden />
+                Export SARIF
+              </a>
             </div>
           </div>
 
