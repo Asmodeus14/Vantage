@@ -155,7 +155,7 @@ function CommandPalette() {
                   <Item
                     icon={FileSearch}
                     label="Analyse a repository"
-                    onSelect={() => run(() => router.push("/"))}
+                    onSelect={() => run(() => router.push("/analyse"))}
                   />
                   <Item
                     icon={Clock}

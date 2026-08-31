@@ -6,7 +6,19 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  // Shared: flat, bordered, quick feedback. No gradients, no hover lift.
+  /*
+    Shared: flat, bordered, quick feedback. Still no gradients and no hover
+    lift — what changed with the retro theme is that `primary` and `danger`
+    carry a hard 2px offset shadow that collapses on :active, so the control
+    travels down onto the page when pressed.
+
+    That is a shadow, which the old note here ruled out. The thing it ruled out
+    was soft blurred elevation used to fake depth on every surface; this has
+    zero blur, appears only on controls that are actually pressable, and reads
+    as an edge rather than as lighting. The implementation is `.shadow-press`
+    in `app/globals.css`, kept there because it needs an :active selector and a
+    reduced-motion carve-out.
+  */
   "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md " +
     "font-medium transition-colors duration-(--duration-fast) " +
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring " +
@@ -16,12 +28,20 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-accent text-fg-on-accent hover:bg-accent-hover border border-transparent",
+          "shadow-press bg-accent text-fg-on-accent hover:bg-accent-hover border border-transparent",
         secondary:
           "bg-surface-raised text-fg border border-border hover:bg-surface-hover hover:border-border-strong",
         ghost: "text-fg-muted hover:text-fg hover:bg-surface-hover border border-transparent",
+        /*
+          `text-fg-on-accent`, not `text-white`. The token flips per theme,
+          which this needs: --critical is a deep oxblood in light mode but a
+          light pink in dark mode, and white on that measured 2.62:1 — a
+          pre-existing failure, since the ramp's dark values were only ever
+          checked as *foreground* text, never as a button background. The
+          token pairing measures 7.73:1 light and 6.33:1 dark.
+        */
         danger:
-          "bg-critical text-white hover:opacity-90 border border-transparent",
+          "shadow-press bg-critical text-fg-on-accent hover:opacity-90 border border-transparent",
         link: "text-accent underline-offset-4 hover:underline border border-transparent",
       },
       size: {

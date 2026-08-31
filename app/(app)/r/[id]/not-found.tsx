@@ -15,7 +15,7 @@ export default function ReportNotFound() {
           description="It may have been deleted, or the server was restarted while running without a database — in that mode reports are held in memory only."
           action={
             <Button asChild variant="primary">
-              <Link href="/">Analyse a repository</Link>
+              <Link href="/analyse">Analyse a repository</Link>
             </Button>
           }
         />

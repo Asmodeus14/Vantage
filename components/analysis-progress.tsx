@@ -122,7 +122,7 @@ export function AnalysisProgress({ jobId }: { jobId: string }) {
         <p className="text-xs text-fg-subtle">
           Job <span className="font-mono">{jobId}</span>
         </p>
-        <Button variant="ghost" size="sm" onClick={() => router.push("/")}>
+        <Button variant="ghost" size="sm" onClick={() => router.push("/analyse")}>
           {failed ? "Start over" : "Cancel"}
         </Button>
       </div>

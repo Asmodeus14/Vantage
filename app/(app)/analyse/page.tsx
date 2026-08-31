@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { AnalyseForm } from "@/components/analyse-form";
@@ -6,6 +7,8 @@ import { ReportListItem } from "@/components/report-list-item";
 import { api } from "@/lib/api";
 import { authHeaders } from "@/lib/session";
 import type { ReportSummary } from "@/lib/types";
+
+export const metadata: Metadata = { title: "Analyse" };
 
 // Recent reports change on every analysis, so never serve a cached shell.
 export const dynamic = "force-dynamic";
@@ -30,8 +33,11 @@ async function recentReports(): Promise<ReportSummary[] | null> {
  * first byte and 3.46s to the end of the document, with five consecutive
  * filmstrip frames of blank white. The API was never the slow part of the
  * paint; waiting for it was.
+ *
+ * This page used to be `/`. It moved to `/analyse` when the landing page took
+ * the root route; the body is unchanged.
  */
-export default function HomePage() {
+export default function AnalysePage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:py-14">
       <div className="mb-8">

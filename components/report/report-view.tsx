@@ -380,7 +380,7 @@ export function ReportView({ report }: { report: Report }) {
             */}
             <ReanalyseAction report={report} />
             <Link
-              href="/"
+              href="/analyse"
               className="rounded transition-colors duration-(--duration-fast) hover:text-fg"
             >
               Analyse another repository

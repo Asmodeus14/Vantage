@@ -37,6 +37,14 @@ export interface LineChartProps {
   caption: string;
   /** Tooltip body for the hovered x position. */
   renderTooltip?: (index: number) => React.ReactNode;
+  /**
+   * Print each point's value above it, so the chart reads without hovering.
+   *
+   * Only honoured for a single series — with two or more the labels collide at
+   * every x where the lines converge, which is exactly where a reader most
+   * needs to tell them apart. Multi-series callers keep the tooltip.
+   */
+  pointLabels?: boolean;
   className?: string;
 }
 
@@ -51,9 +59,15 @@ export function LineChart({
   area = false,
   caption,
   renderTooltip,
+  pointLabels = false,
   className,
 }: LineChartProps) {
   const [hovered, setHovered] = React.useState<number | null>(null);
+
+  const showPointLabels = pointLabels && series.length === 1;
+  // The labels sit above the highest point, which without extra headroom
+  // renders outside the plot and gets clipped by the shell.
+  const pad = showPointLabels ? { ...PADDING, top: 22 } : PADDING;
 
   const values = series.flatMap((s) => s.values.filter((v): v is number => v !== null));
   const domain: [number, number] =
@@ -76,21 +90,33 @@ export function LineChart({
   return (
     <ChartShell caption={caption} table={table} height={height} className={className}>
       {(width) => {
-        const plotWidth = Math.max(1, width - PADDING.left - PADDING.right);
-        const plotHeight = Math.max(1, height - PADDING.top - PADDING.bottom);
+        const plotWidth = Math.max(1, width - pad.left - pad.right);
+        const plotHeight = Math.max(1, height - pad.top - pad.bottom);
 
         // A single point has no span to spread across, so it sits centred.
         const x = linearScale(
           [0, Math.max(1, labels.length - 1)],
           labels.length === 1
-            ? [PADDING.left + plotWidth / 2, PADDING.left + plotWidth / 2]
-            : [PADDING.left, PADDING.left + plotWidth],
+            ? [pad.left + plotWidth / 2, pad.left + plotWidth / 2]
+            : [pad.left, pad.left + plotWidth],
         );
-        const y = linearScale(domain, [PADDING.top + plotHeight, PADDING.top]);
+        const y = linearScale(domain, [pad.top + plotHeight, pad.top]);
         const ticks = niceTicks(domain[0], domain[1], 4);
 
         // Only label every nth x tick when they would otherwise collide.
         const step = Math.max(1, Math.ceil(labels.length / Math.floor(plotWidth / 64)));
+        const lastIndex = labels.length - 1;
+
+        /*
+          The last tick is always drawn, so a stepped tick landing near it
+          overprints. With 12 points and room for five labels the step is 3,
+          which draws 0, 3, 6, 9 and 11 — and 9 and 11 are two positions apart,
+          close enough that the two strings overlapped into an unreadable smear
+          at the right edge of the plot. Dropping any stepped tick within one
+          full step of the end leaves 0, 3, 6, 11.
+        */
+        const showLabel = (index: number) =>
+          index === lastIndex || (index % step === 0 && lastIndex - index >= step);
 
         return (
           <>
@@ -104,7 +130,7 @@ export function LineChart({
               onPointerMove={(event) => {
                 const box = event.currentTarget.getBoundingClientRect();
                 const offset = event.clientX - box.left;
-                const ratio = (offset - PADDING.left) / plotWidth;
+                const ratio = (offset - pad.left) / plotWidth;
                 const index = Math.round(ratio * Math.max(1, labels.length - 1));
                 setHovered(Math.min(labels.length - 1, Math.max(0, index)));
               }}
@@ -112,15 +138,15 @@ export function LineChart({
               {ticks.map((tick) => (
                 <g key={tick}>
                   <line
-                    x1={PADDING.left}
-                    x2={PADDING.left + plotWidth}
+                    x1={pad.left}
+                    x2={pad.left + plotWidth}
                     y1={y(tick)}
                     y2={y(tick)}
                     stroke="var(--chart-grid)"
                     strokeWidth={1}
                   />
                   <text
-                    x={PADDING.left - 6}
+                    x={pad.left - 6}
                     y={y(tick)}
                     textAnchor="end"
                     dominantBaseline="middle"
@@ -132,13 +158,13 @@ export function LineChart({
               ))}
 
               {labels.map((label, index) =>
-                index % step === 0 || index === labels.length - 1 ? (
+                showLabel(index) ? (
                   <text
                     key={`${label}-${index}`}
                     x={x(index)}
                     y={height - 6}
                     textAnchor={
-                      index === 0 ? "start" : index === labels.length - 1 ? "end" : "middle"
+                      index === 0 ? "start" : index === lastIndex ? "end" : "middle"
                     }
                     className="tabular fill-fg-subtle text-[10px]"
                   >
@@ -151,8 +177,8 @@ export function LineChart({
                 <line
                   x1={x(hovered)}
                   x2={x(hovered)}
-                  y1={PADDING.top}
-                  y2={PADDING.top + plotHeight}
+                  y1={pad.top}
+                  y2={pad.top + plotHeight}
                   stroke="var(--chart-axis)"
                   strokeWidth={1}
                   strokeDasharray="3 3"
@@ -162,15 +188,18 @@ export function LineChart({
               {series.map((line) => {
                 const points = line.values
                   .map((value, index) =>
-                    value === null ? null : { x: x(index), y: y(value) },
+                    value === null ? null : { x: x(index), y: y(value), value },
                   )
-                  .filter((point): point is { x: number; y: number } => point !== null);
+                  .filter(
+                    (point): point is { x: number; y: number; value: number } =>
+                      point !== null,
+                  );
 
                 return (
                   <g key={line.id}>
                     {area && points.length > 1 && (
                       <path
-                        d={areaPath(points, PADDING.top + plotHeight)}
+                        d={areaPath(points, pad.top + plotHeight)}
                         fill={line.colour}
                         opacity={0.1}
                       />
@@ -194,6 +223,27 @@ export function LineChart({
                         strokeWidth={1.75}
                       />
                     ))}
+
+                    {/* Values above each point. The first and last anchor
+                        inward so they do not overhang the plot on either side. */}
+                    {showPointLabels &&
+                      points.map((point, index) => (
+                        <text
+                          key={`label-${index}`}
+                          x={point.x}
+                          y={point.y - 9}
+                          textAnchor={
+                            index === 0
+                              ? "start"
+                              : index === points.length - 1
+                                ? "end"
+                                : "middle"
+                          }
+                          className="tabular fill-fg-muted text-[10px] font-medium"
+                        >
+                          {formatY(point.value)}
+                        </text>
+                      ))}
                   </g>
                 );
               })}

@@ -1,11 +1,39 @@
 import type { Metadata, Viewport } from "next";
+import { JetBrains_Mono, Pixelify_Sans } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 
-import { AppShell } from "@/components/app-shell";
 import { ThemeProvider } from "@/components/theme-provider";
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/config";
 
 import "./globals.css";
+
+/*
+  Both are self-hosted by next/font — the files are emitted into the build and
+  served from our own origin, so this adds no third-party request and no
+  render-blocking stylesheet. That matters here: this app previously shipped
+  system fonts only, specifically to avoid a webfont on the critical path.
+
+  `display: "swap"` means text paints immediately in the fallback stack and
+  reflows when the font arrives. For the monospace body that reflow is small,
+  because the fallback is also monospace and advances identically.
+*/
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-jetbrains-mono",
+});
+
+/*
+  Display only — the landing hero, section headings, and the scene's popup.
+  Loaded at 400/700 rather than as a variable font because nothing here
+  interpolates weight, and the two static cuts are smaller than the axis.
+*/
+const pixelifySans = Pixelify_Sans({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  display: "swap",
+  variable: "--font-pixelify-sans",
+});
 
 /*
   `description` is deliberately not here — it is rendered as JSX below instead.
@@ -60,29 +88,43 @@ export const metadata: Metadata = {
   },
 };
 
+// Matches --canvas in `app/globals.css` for each theme. These paint the
+// browser chrome on mobile, so a stale value shows as a seam above the page.
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0e1116" },
+    { media: "(prefers-color-scheme: light)", color: "#d3e4de" },
+    { media: "(prefers-color-scheme: dark)", color: "#111d1d" },
   ],
 };
 
+/*
+  This layout deliberately renders no chrome of its own.
+
+  The product has three shells that share nothing visually — the marketing
+  header on the landing page, the app header on the tool, and the icon rail on
+  the dashboard — so each route group owns its own layout and this one is left
+  holding only what is genuinely global: the document, the theme, the fonts and
+  the analytics beacon.
+*/
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     // suppressHydrationWarning: next-themes sets the class on <html> before
     // React hydrates, which is an intentional mismatch.
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${jetbrainsMono.variable} ${pixelifySans.variable}`}
+    >
       {/* Hoisted into <head> by React, in the first flush. See the note on
           `metadata` above for why it is not declared there. */}
       <meta name="description" content={APP_DESCRIPTION} />
       <body className="min-h-dvh bg-canvas antialiased">
-        <ThemeProvider>
-          <AppShell>{children}</AppShell>
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
         {/* Last in the body so its script is discovered after the page's own,
-            and outside AppShell so a route that throws still reports the view. */}
+            and outside the route groups so a route that throws still reports
+            the view. */}
         <Analytics />
       </body>
     </html>
