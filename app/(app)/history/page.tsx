@@ -7,41 +7,13 @@ import { ReportListItem } from "@/components/report-list-item";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/states";
 import { api, describeError } from "@/lib/api";
+import { groupReports } from "@/lib/reports";
 import { authHeaders } from "@/lib/session";
 import { pluralise } from "@/lib/utils";
 import type { ReportSummary } from "@/lib/types";
 
 export const metadata: Metadata = { title: "History" };
 export const dynamic = "force-dynamic";
-
-/**
- * Group analyses by what they analysed.
- *
- * A flat reverse-chronological list buries the useful comparison: five runs of
- * the same repository interleaved with three of another tells you nothing about
- * either. Grouping puts each project's runs next to each other, which is what
- * makes a per-project sparkline meaningful.
- *
- * Uploads have no stable identity across runs, so they stay ungrouped.
- */
-function group(reports: ReportSummary[]) {
-  const repositories = new Map<string, ReportSummary[]>();
-  const uploads: ReportSummary[] = [];
-
-  for (const report of reports) {
-    const key = report.source.repository;
-    if (!key) {
-      uploads.push(report);
-      continue;
-    }
-    const existing = repositories.get(key);
-    if (existing) existing.push(report);
-    else repositories.set(key, [report]);
-  }
-
-  // Most recently analysed project first; `reports` already arrives newest-first.
-  return { repositories: [...repositories.entries()], uploads };
-}
 
 export default async function HistoryPage({
   searchParams,
@@ -62,7 +34,7 @@ export default async function HistoryPage({
     failure = describeError(error);
   }
 
-  const grouped = reports ? group(reports) : null;
+  const grouped = reports ? groupReports(reports) : null;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
@@ -130,7 +102,7 @@ export default async function HistoryPage({
               : "Run one and it will appear here. If this server is running without a database, reports are held in memory and cleared on restart."}
           </p>
           <Button asChild variant="secondary" size="sm" className="mt-3">
-            <Link href="/">Analyse a repository</Link>
+            <Link href="/analyse">Analyse a repository</Link>
           </Button>
         </div>
       )}

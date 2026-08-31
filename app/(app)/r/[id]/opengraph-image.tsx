@@ -17,19 +17,22 @@ export const contentType = "image/png";
   in `globals.css` beside the ramp points back at this file so the two cannot
   drift silently.
 
-  Derived from the HSL tokens: --canvas, --critical, --high, --medium, --low,
-  --success.
+  Derived from the *dark* HSL tokens: --canvas, --surface, --border, --fg,
+  --fg-muted, --critical, --high, --medium, --low, --success. The card is dark
+  in both themes — it is rendered once at request time with no way to know the
+  reader's preference, and a dark card sits better in the feeds these links
+  actually land in.
 */
-const CANVAS = "#0e1116";
-const SURFACE = "#161b22";
-const BORDER = "#272e38";
-const FG = "#e6edf3";
-const FG_MUTED = "#9aa4b2";
-const CRITICAL = "#c91d3c";
-const HIGH = "#b84d0f";
-const MEDIUM = "#976611";
-const LOW = "#1f65d6";
-const SUCCESS = "#1c8252";
+const CANVAS = "#111d1d"; /* hsl(180 26% 9%)  */
+const SURFACE = "#1b2828"; /* hsl(180 20% 13%) */
+const BORDER = "#2f4140"; /* hsl(178 16% 22%) */
+const FG = "#edeade"; /* hsl(46 30% 90%)  */
+const FG_MUTED = "#a4b7b1"; /* hsl(160 12% 68%) */
+const CRITICAL = "#f6798a"; /* hsl(352 88% 72%) */
+const HIGH = "#f89e54"; /* hsl(27 92% 65%)  */
+const MEDIUM = "#f7c64a"; /* hsl(43 92% 63%)  */
+const LOW = "#6fb7f6"; /* hsl(208 88% 70%) */
+const SUCCESS = "#54d498"; /* hsl(152 60% 58%) */
 
 /** Mirrors `scoreColour` in `lib/severity.ts`, which returns class names. */
 function scoreHex(value: number): string {
@@ -154,7 +157,7 @@ export default async function Image({ params }: { params: Promise<{ id: string }
                   flexDirection: "column",
                   background: SURFACE,
                   border: `1px solid ${BORDER}`,
-                  borderRadius: 12,
+                  borderRadius: 4,
                   padding: "16px 28px",
                   minWidth: 150,
                 }}

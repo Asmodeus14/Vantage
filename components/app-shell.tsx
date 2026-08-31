@@ -16,7 +16,8 @@ import { UserMenu } from "@/components/user-menu";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/", label: "Analyse" },
+  { href: "/analyse", label: "Analyse" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/history", label: "History" },
   { href: "/settings", label: "Settings" },
 ] as const;
@@ -42,10 +43,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <nav aria-label="Main" className="flex items-center gap-0.5">
             {NAV.map((item) => {
+              /*
+                Match on segment boundaries, not on a bare prefix. `/analysing`
+                starts with `/analyse`, so `startsWith` alone lights up the
+                Analyse tab while an analysis is running on a different route.
+              */
               const active =
-                item.href === "/"
-                  ? pathname === "/"
-                  : pathname.startsWith(item.href);
+                pathname === item.href ||
+                pathname.startsWith(`${item.href}/`);
               return (
                 // Current page is signalled by weight and colour alone. A
                 // filled pill carried more visual weight than the navigation
